@@ -377,7 +377,7 @@ private struct RelayMenuView: View {
                     MetricRow(title: "Yardım edilen bağlantı", value: String(Int(status.snowflake?.traffic.connections ?? 0)))
                     MetricRow(
                         title: "Aylık kota",
-                        value: (status.traffic.unlimited ?? status.traffic.quota <= 0)
+                        value: (status.traffic.unlimited ?? (status.traffic.quota <= 0))
                             ? "Sınırsız"
                             : RelayMonitor.formatBytes(status.traffic.quota)
                     )
