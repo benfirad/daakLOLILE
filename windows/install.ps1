@@ -16,14 +16,15 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
 $sourceRoot = Split-Path -Parent $PSScriptRoot
-$installRoot = 'C:\ProgramData\RelayWatch'
+$installRoot = 'C:\ProgramData\LOLILE'
 $dashboardRoot = Join-Path $installRoot 'dashboard'
 $publicRoot = Join-Path $dashboardRoot 'public'
 $libraryRoot = Join-Path $installRoot 'lib'
 $dataRoot = Join-Path $installRoot 'data'
-$hardwareTask = 'RelayWatch Hardware Monitor'
-$dashboardTask = 'RelayWatch Dashboard'
-$firewallRule = 'RelayWatch Dashboard (Tailscale only)'
+$hardwareTask = 'LOLILE Hardware Monitor'
+$dashboardTask = 'LOLILE Dashboard'
+$powerTask = 'LOLILE Power Manager'
+$firewallRule = 'LOLILE Dashboard (Tailscale only)'
 $lhmVersion = '0.9.6'
 $lhmUrl = 'https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/download/v0.9.6/LibreHardwareMonitor.zip'
 $lhmSha256 = '086D9F1B5A99E643EDC2CFAAAC16051685B551E4C5AC0B32A57C58C0E529C001'
@@ -59,6 +60,7 @@ if ($nodeMajor -lt 22) {
 
 foreach ($required in @(
     (Join-Path $sourceRoot 'windows\hardware-monitor.ps1'),
+    (Join-Path $sourceRoot 'windows\power-manager.ps1'),
     (Join-Path $sourceRoot 'windows\widget.ps1'),
     (Join-Path $sourceRoot 'windows\dashboard\server.mjs'),
     (Join-Path $sourceRoot 'windows\dashboard\public\dashboard.html')
@@ -70,12 +72,24 @@ foreach ($required in @(
 
 New-Item -ItemType Directory -Path $installRoot,$dashboardRoot,$publicRoot,$libraryRoot,$dataRoot -Force | Out-Null
 
-Stop-RelayWatchTask -Name $hardwareTask
-Stop-RelayWatchTask -Name $dashboardTask
+foreach ($taskName in @(
+    $hardwareTask,$dashboardTask,$powerTask,
+    'RelayWatch Hardware Monitor','RelayWatch Dashboard','RelayWatch Power Manager'
+)) {
+    Stop-RelayWatchTask -Name $taskName
+}
+
+Get-NetTCPConnection -LocalPort $DashboardPort -State Listen -ErrorAction SilentlyContinue |
+    ForEach-Object {
+        $listener = Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue
+        if ($listener -and $listener.Name -eq 'node') {
+            Stop-Process -Id $listener.Id -Force -ErrorAction SilentlyContinue
+        }
+    }
 Get-CimInstance Win32_Process |
     Where-Object {
         $_.Name -in @('powershell.exe','node.exe') -and
-        $_.CommandLine -match '(?i)C:\\ProgramData\\RelayWatch'
+        $_.CommandLine -match '(?i)C:\\ProgramData\\(?:RelayWatch|LOLILE|TorRelayDashboard)'
     } |
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 Start-Sleep -Milliseconds 1200
@@ -111,6 +125,9 @@ if (-not (Test-Path -LiteralPath $libraryDll)) {
 Write-Utf8Bom `
     -Source (Join-Path $sourceRoot 'windows\hardware-monitor.ps1') `
     -Destination (Join-Path $installRoot 'hardware-monitor.ps1')
+Write-Utf8Bom `
+    -Source (Join-Path $sourceRoot 'windows\power-manager.ps1') `
+    -Destination (Join-Path $installRoot 'power-manager.ps1')
 Copy-Item `
     -LiteralPath (Join-Path $sourceRoot 'windows\dashboard\server.mjs') `
     -Destination (Join-Path $dashboardRoot 'server.mjs') `
@@ -123,6 +140,21 @@ Write-Utf8Bom `
     -Source (Join-Path $sourceRoot 'windows\widget.ps1') `
     -Destination (Join-Path $installRoot 'widget.ps1')
 
+foreach ($legacyDataRoot in @(
+    'C:\ProgramData\RelayWatch\data',
+    'C:\ProgramData\TorRelayDashboard\data'
+)) {
+    if (Test-Path -LiteralPath $legacyDataRoot) {
+        foreach ($file in @('traffic.json','snowflake-traffic.json')) {
+            $source = Join-Path $legacyDataRoot $file
+            $destination = Join-Path $dataRoot $file
+            if ((Test-Path -LiteralPath $source) -and -not (Test-Path -LiteralPath $destination)) {
+                Copy-Item -LiteralPath $source -Destination $destination
+            }
+        }
+    }
+}
+
 $escapedTorRoot = $TorRoot.Replace("'", "''")
 $escapedNode = $node.Source.Replace("'", "''")
 $dashboardLauncher = @"
@@ -131,6 +163,8 @@ $dashboardLauncher = @"
 `$env:RELAYWATCH_PUBLIC_ROOT = '$publicRoot'
 `$env:RELAYWATCH_HARDWARE_STATUS = '$installRoot\hardware-status.json'
 `$env:RELAYWATCH_PORT = '$DashboardPort'
+`$env:LOLILE_POWER_MANAGER = '$installRoot\power-manager.ps1'
+`$env:LOLILE_POWER_STATUS = '$installRoot\power-status.json'
 `$env:TOR_ROOT = '$escapedTorRoot'
 `$env:TOR_OR_PORT = '$TorOrPort'
 `$env:TOR_SERVICE_NAME = '$TorServiceName'
@@ -157,6 +191,10 @@ $dashboardAction = New-ScheduledTaskAction `
     -Execute $powerShell `
     -Argument "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$installRoot\start-dashboard.ps1`"" `
     -WorkingDirectory $installRoot
+$powerAction = New-ScheduledTaskAction `
+    -Execute $powerShell `
+    -Argument "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$installRoot\power-manager.ps1`" -Action Tick -InstallRoot `"$installRoot`"" `
+    -WorkingDirectory $installRoot
 $startup = New-ScheduledTaskTrigger -AtStartup
 $watchdog = New-ScheduledTaskTrigger `
     -Once `
@@ -170,7 +208,7 @@ Register-ScheduledTask `
     -Trigger @($startup,$watchdog) `
     -Principal $principal `
     -Settings $settings `
-    -Description "RelayWatch hardware telemetry using LibreHardwareMonitor $lhmVersion." `
+    -Description "LOLILE hardware telemetry using LibreHardwareMonitor $lhmVersion." `
     -Force | Out-Null
 Register-ScheduledTask `
     -TaskName $dashboardTask `
@@ -178,11 +216,26 @@ Register-ScheduledTask `
     -Trigger @($startup,$watchdog) `
     -Principal $principal `
     -Settings $settings `
-    -Description 'Local Tor relay, Snowflake and PC monitoring dashboard.' `
+    -Description 'LOLILE Tor relay, Snowflake, PC monitor and private power-control dashboard.' `
+    -Force | Out-Null
+Register-ScheduledTask `
+    -TaskName $powerTask `
+    -Action $powerAction `
+    -Trigger @($startup,$watchdog) `
+    -Principal $principal `
+    -Settings $settings `
+    -Description 'LOLILE automatic night power mode. Sleep remains disabled and remote services stay online.' `
     -Force | Out-Null
 
-Get-NetFirewallRule -DisplayName $firewallRule -ErrorAction SilentlyContinue |
-    Remove-NetFirewallRule
+foreach ($oldRule in @(
+    $firewallRule,
+    'RelayWatch Dashboard (Tailscale only)',
+    'benfirad Tor Dashboard (Tailscale)',
+    'lolile - Tor support dashboard (Tailscale only)'
+)) {
+    Get-NetFirewallRule -DisplayName $oldRule -ErrorAction SilentlyContinue |
+        Remove-NetFirewallRule
+}
 New-NetFirewallRule `
     -DisplayName $firewallRule `
     -Direction Inbound `
@@ -192,8 +245,14 @@ New-NetFirewallRule `
     -RemoteAddress @('100.64.0.0/10','fd7a:115c:a1e0::/48') `
     -Profile Any | Out-Null
 
+& $powerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+    -File (Join-Path $installRoot 'power-manager.ps1') `
+    -Action Install `
+    -InstallRoot $installRoot | Out-Null
+
 Start-ScheduledTask -TaskName $hardwareTask
 Start-ScheduledTask -TaskName $dashboardTask
+Start-ScheduledTask -TaskName $powerTask
 
 if ($InstallWidget) {
     $launcher = Join-Path $installRoot 'launch-widget.vbs'
@@ -201,11 +260,14 @@ if ($InstallWidget) {
 CreateObject("Wscript.Shell").Run "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""$installRoot\widget.ps1""", 0, False
 "@ | Set-Content -LiteralPath $launcher -Encoding ASCII
     $startupFolder = [Environment]::GetFolderPath('Startup')
-    $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $startupFolder 'RelayWatch Widget.lnk'))
+    foreach ($legacyShortcut in @('RelayWatch Widget.lnk','benfirad Tor Paneli.lnk')) {
+        Remove-Item -LiteralPath (Join-Path $startupFolder $legacyShortcut) -Force -ErrorAction SilentlyContinue
+    }
+    $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $startupFolder 'LOLILE Widget.lnk'))
     $shortcut.TargetPath = Join-Path $env:SystemRoot 'System32\wscript.exe'
     $shortcut.Arguments = "`"$launcher`""
     $shortcut.WorkingDirectory = $installRoot
-    $shortcut.Description = 'RelayWatch desktop widget'
+    $shortcut.Description = 'LOLILE desktop widget'
     $shortcut.Save()
     Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\wscript.exe') -ArgumentList "`"$launcher`""
 }
@@ -221,10 +283,11 @@ do {
 } while (($null -eq $status -or $status.hardware.available -ne $true) -and (Get-Date) -lt $deadline)
 
 if ($null -eq $status -or $status.hardware.available -ne $true) {
-    throw "RelayWatch tasks were installed, but the local API did not become healthy on port $DashboardPort."
+    throw "LOLILE tasks were installed, but the local API did not become healthy on port $DashboardPort."
 }
 
 Write-Host ''
-Write-Host "RelayWatch is ready: http://127.0.0.1:$DashboardPort" -ForegroundColor Green
-Write-Host 'Remote dashboard access is limited to Tailscale address ranges.'
+Write-Host "LOLILE is ready: http://127.0.0.1:$DashboardPort" -ForegroundColor Green
+Write-Host 'Remote dashboard and power control are limited to Tailscale address ranges.'
+Write-Host 'Automatic night mode defaults to 00:00-08:00. Sleep, Tor, Tailscale, Chrome Remote Desktop and SMB remain enabled.'
 Write-Host 'The total wall-power value is an estimate unless a supported external meter is integrated.'

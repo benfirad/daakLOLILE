@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="$ROOT/build"
-APP="$BUILD_DIR/RelayWatch.app"
+APP="$BUILD_DIR/LOLILE.app"
 CONTENTS="$APP/Contents"
 MACOS_DIR="$CONTENTS/MacOS"
 ARCH="$(uname -m)"
@@ -22,13 +22,13 @@ fi
 rm -rf "$APP"
 mkdir -p "$MACOS_DIR"
 
-echo "RelayWatch uygulaması hazırlanıyor…"
+echo "LOLILE uygulaması hazırlanıyor…"
 xcrun --sdk macosx swiftc \
   -parse-as-library \
   -O \
   -target "$ARCH-apple-macos13.0" \
-  -o "$MACOS_DIR/RelayWatch" \
-  "$ROOT/Sources/RelayWatchApp.swift" \
+  -o "$MACOS_DIR/LOLILE" \
+  "$ROOT/Sources/LOLILEApp.swift" \
   -framework SwiftUI \
   -framework AppKit
 

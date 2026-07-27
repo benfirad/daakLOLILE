@@ -5,6 +5,7 @@ $powerShellFiles = @(
     'windows\install.ps1',
     'windows\uninstall.ps1',
     'windows\hardware-monitor.ps1',
+    'windows\power-manager.ps1',
     'windows\widget.ps1'
 )
 
@@ -32,7 +33,7 @@ $scriptMatch = [regex]::Match($dashboard, '(?s)<script>(.*)</script>')
 if (-not $scriptMatch.Success) {
     throw 'Dashboard inline script was not found.'
 }
-$temporaryScript = Join-Path ([IO.Path]::GetTempPath()) ('relaywatch-dashboard-' + [guid]::NewGuid().ToString('N') + '.js')
+$temporaryScript = Join-Path ([IO.Path]::GetTempPath()) ('lolile-dashboard-' + [guid]::NewGuid().ToString('N') + '.js')
 try {
     [IO.File]::WriteAllText(
         $temporaryScript,
@@ -47,6 +48,13 @@ try {
 finally {
     if (Test-Path -LiteralPath $temporaryScript) {
         Remove-Item -LiteralPath $temporaryScript -Force
+    }
+}
+
+$serverSource = Get-Content -LiteralPath (Join-Path $repoRoot 'windows\dashboard\server.mjs') -Raw
+foreach ($required in @('/api/power','isTailscale','power-manager.ps1')) {
+    if ($serverSource -notmatch [regex]::Escape($required)) {
+        throw "Missing protected power-control feature: $required"
     }
 }
 
@@ -77,4 +85,4 @@ foreach ($file in $textFiles) {
     }
 }
 
-Write-Host 'RelayWatch verification passed.' -ForegroundColor Green
+Write-Host 'LOLILE verification passed.' -ForegroundColor Green

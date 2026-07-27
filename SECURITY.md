@@ -14,15 +14,18 @@ Use GitHub's private vulnerability reporting feature for this repository. Includ
 
 ## Supported security boundary
 
-RelayWatch is intended to:
+LOLILE is intended to:
 
 - expose the dashboard only to localhost and explicitly allowed private/Tailscale networks;
-- keep remote API access read-only;
+- keep Tor configuration writes restricted to localhost;
+- allow remote power changes only from Tailscale addresses and only among predefined profiles;
 - reject settings changes from non-loopback clients;
 - avoid storing credentials in the repository;
 - run the collector and dashboard without an interactive user session.
 
-RelayWatch is not an authentication gateway and should not be exposed directly to the public internet. Use a private network or add a separately audited authenticated reverse proxy.
+LOLILE is not an authentication gateway and should not be exposed directly to the public internet. Use a private network or add a separately audited authenticated reverse proxy.
+
+The power endpoint does not accept command strings, executable paths, service names, or arbitrary `powercfg` settings. It maps four fixed mode names to locally installed LOLILE schemes. Every scheme disables sleep and preserves network-dependent services.
 
 ## Sensitive files that must never be committed
 

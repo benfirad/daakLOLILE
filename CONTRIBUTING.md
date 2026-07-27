@@ -1,4 +1,4 @@
-# Contributing to RelayWatch
+# Contributing to LOLILE
 
 Thank you for helping improve safe, privacy-preserving relay operations.
 
