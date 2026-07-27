@@ -1,6 +1,6 @@
-# RelayWatch — Türkçe
+# LOLILE — Türkçe
 
-RelayWatch; Windows üzerinde çalışan Tor middle/non-exit relay, Snowflake ve bilgisayar donanımını tek panelden izler. Küçük bir Windows masaüstü bileşeni ve Tailscale üzerinden çalışan salt okunur macOS üst menü uygulaması içerir.
+LOLILE; Windows üzerinde çalışan Tor middle/non-exit relay, Snowflake, bilgisayar donanımı ve güvenli güç modlarını tek panelden yönetir. Küçük bir Windows masaüstü bileşeni ve Tailscale üzerinden çalışan macOS üst menü uygulaması içerir.
 
 ## Özellikler
 
@@ -11,11 +11,14 @@ RelayWatch; Windows üzerinde çalışan Tor middle/non-exit relay, Snowflake ve
 - Tahmini toplam priz tüketimi ile günlük/aylık kWh takibi
 - Kullanıcı giriş yapmasa da çalışan Windows görevleri
 - Yalnızca localhost üzerinden değiştirilebilen relay ayarları
+- Gece `00:00–08:00` arasında otomatik tasarruf, gündüz dengeli mod
+- Tailscale üzerinden otomatik, tasarruf, dengeli ve yüksek performans geçişi
+- Tasarruf modunda bile uyku, hibernasyon ve ağ kesintisinin kapalı tutulması
 - Tailscale adres aralıklarıyla sınırlı uzaktan panel
 
 ## Güvenlik
 
-RelayWatch bir exit relay kurmaz. Tor yapılandırmanızda aşağıdaki satırların bulunması önerilir:
+LOLILE bir exit relay kurmaz. Tor yapılandırmanızda aşağıdaki satırların bulunması önerilir:
 
 ```text
 SocksPort 0
@@ -55,11 +58,20 @@ xcode-select --install
 zsh build.command
 ```
 
-Uygulama açıldığında Windows bilgisayarının Tailscale IP'sini yazın. Mac uygulaması yalnızca veri okur; Mac üzerinde relay çalıştırmaz.
+Uygulama açıldığında Windows bilgisayarının Tailscale IP'sini yazın. Mac uygulaması verileri okur ve yalnızca önceden tanımlı güç modları arasında geçiş yapabilir; Mac üzerinde relay çalıştırmaz ve Tor ayarlarını değiştiremez.
+
+## Güvenli güç modları
+
+- **Otomatik:** Varsayılan olarak `00:00–08:00` tasarruf, diğer saatlerde dengeli.
+- **Gece tasarrufu:** CPU üst sınırı %60, destekleniyorsa boost kapalı, ekran 10 dakikada kapanır.
+- **Dengeli:** Günlük kullanım için tam CPU aralığı.
+- **Yüksek performans:** Tam CPU ve boost, daha uzun ekran süresi.
+
+Her modda Windows uyku, hibernasyon ve hibrit uyku kapalıdır. Tor, Snowflake, Tailscale, Chrome Remote Desktop, RDP, SMB disk paylaşımı ve Syncthing ayarlarına dokunulmaz. Güç yöneticisi kullanıcı girişi olmadan `SYSTEM` olarak çalışır.
 
 ## Güç tüketimi
 
-Güç kaynağındaki 650 W gibi değerler anlık tüketim değil, azami kapasitedir. RelayWatch erişebildiği bileşen sensörlerini kullanır; eksik CPU/sistem/PSU değerlerini tahmin eder ve toplamı açıkça tahmini olarak işaretler.
+Güç kaynağındaki 650 W gibi değerler anlık tüketim değil, azami kapasitedir. LOLILE erişebildiği bileşen sensörlerini kullanır; eksik CPU/sistem/PSU değerlerini tahmin eder ve toplamı açıkça tahmini olarak işaretler.
 
 Gerçek priz tüketimi için yerel API sunan güvenilir bir akıllı priz veya harici güç ölçer gerekir.
 

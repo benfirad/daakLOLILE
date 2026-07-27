@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0d0c10">
-  <title>RelayWatch · Tor Relay and PC Monitor</title>
-  <meta name="description" content="Private Windows Tor relay, Snowflake and hardware monitoring dashboard with a macOS menu bar companion.">
+  <title>LOLILE · Tor Relay, PC and Power Control</title>
+  <meta name="description" content="Private Windows Tor relay, Snowflake, hardware monitoring and remote power-mode dashboard with a macOS menu bar companion.">
   <style>
     :root {
       color-scheme: dark;
@@ -179,6 +179,25 @@
     .hardware-strip strong { display: block; margin-top: 6px; font-family: var(--mono); font-size: 12px; font-weight: 500; }
     .power-chart { height: 50px; display: flex; align-items: end; gap: 3px; margin-top: 15px; }
     .power-bar { flex: 1; min-width: 2px; min-height: 3px; border-radius: 2px 2px 0 0; background: linear-gradient(to top, rgba(100,214,146,.18), rgba(100,214,146,.85)); transition: height .4s ease; }
+    .power-control {
+      margin-top: 16px;
+      padding: 16px;
+      border: 1px solid rgba(198,155,234,.14);
+      border-radius: 14px;
+      background: rgba(12,10,15,.54);
+      display: grid;
+      grid-template-columns: minmax(180px,.65fr) 1.35fr;
+      gap: 18px;
+      align-items: center;
+    }
+    .power-mode-title { margin: 5px 0 2px; font-size: 20px; font-weight: 680; }
+    .power-mode-note { color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .power-actions { display: grid; gap: 10px; }
+    .power-modes { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
+    .mode-button.active { color: #101713; background: var(--green); border-color: var(--green); font-weight: 700; }
+    .power-schedule { display: flex; align-items: center; justify-content: flex-end; gap: 8px; color: var(--muted); font-size: 11px; }
+    .time-input { width: 92px; color: var(--text); background: #100e14; border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; }
+    .power-message { min-height: 16px; color: var(--muted); font-size: 11px; text-align: right; }
     .processes-card, .storage-card { grid-column: span 6; }
     .process-list, .volume-list { display: grid; gap: 10px; }
     .process-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
@@ -329,7 +348,9 @@
       .stamp, .button .wide, .relay-search { display: none; }
       .hero { padding: 20px; }
       .hero-side { grid-template-columns: 1fr; }
-      .sensor-grid, .hardware-strip { grid-template-columns: 1fr; }
+      .sensor-grid, .hardware-strip, .power-control { grid-template-columns: 1fr; }
+      .power-modes { grid-template-columns: repeat(2,1fr); }
+      .power-schedule { justify-content: flex-start; flex-wrap: wrap; }
       .usage-meta, .field-grid { grid-template-columns: 1fr; }
       .card { padding: 17px; }
       .logline { grid-template-columns: 62px 44px 1fr; font-size: 10px; gap: 6px; }
@@ -344,7 +365,7 @@
         <div class="onion" aria-hidden="true"></div>
         <div>
           <div class="eyebrow">Windows sistem ve Tor operasyon paneli</div>
-          <h1>RelayWatch</h1>
+          <h1>LOLILE</h1>
         </div>
       </div>
       <div class="header-actions">
@@ -423,6 +444,29 @@
           <div><span>Ethernet</span><strong id="network-live">—</strong></div>
           <div><span>Çalışma süresi</span><strong id="machine-uptime">—</strong></div>
         </div>
+        <div class="power-control">
+          <div>
+            <div class="card-label">LOLILE güç yönetimi</div>
+            <div class="power-mode-title" id="power-mode-title">Hazırlanıyor</div>
+            <div class="power-mode-note" id="power-mode-note">Uyku kapalı; Tor, Tailscale, uzaktan masaüstü ve disk paylaşımı korunur.</div>
+          </div>
+          <div class="power-actions">
+            <div class="power-modes">
+              <button class="button mode-button" type="button" data-power-mode="auto">Otomatik</button>
+              <button class="button mode-button" type="button" data-power-mode="eco">Gece tasarrufu</button>
+              <button class="button mode-button" type="button" data-power-mode="balanced">Dengeli</button>
+              <button class="button mode-button" type="button" data-power-mode="performance">Yüksek performans</button>
+            </div>
+            <div class="power-schedule">
+              <span>Gece</span>
+              <input class="time-input" id="night-start" type="time" value="00:00" aria-label="Gece modu başlangıcı">
+              <span>–</span>
+              <input class="time-input" id="night-end" type="time" value="08:00" aria-label="Gece modu bitişi">
+              <button class="button" id="save-power-schedule" type="button">Saati kaydet</button>
+            </div>
+            <div class="power-message" id="power-message"></div>
+          </div>
+        </div>
         <div class="power-chart" id="power-chart" aria-label="Yakın dönem tahmini güç grafiği"></div>
       </article>
 
@@ -500,7 +544,7 @@
       </article>
     </section>
 
-    <footer><span id="access-note">Windows’ta ayarlar açık · Tailscale’den salt okunur</span><span>5 saniyede bir otomatik yenilenir</span></footer>
+    <footer><span id="access-note">LOLILE güvenli bağlantı hazırlanıyor</span><span>5 saniyede bir otomatik yenilenir</span></footer>
   </main>
 
   <dialog id="settings-dialog" aria-labelledby="settings-title">
@@ -658,6 +702,28 @@
         for (const id of ["cpu-meter", "gpu-meter", "memory-meter", "disk-meter"]) setMeter(id, 0);
       }
 
+      const power = data.power || {};
+      const powerLabels = {
+        eco: "Gece tasarrufu",
+        balanced: "Dengeli",
+        performance: "Yüksek performans",
+        unknown: "Hazır değil",
+      };
+      $("power-mode-title").textContent = powerLabels[power.effectiveMode] || "Hazır değil";
+      $("power-mode-note").textContent = power.controlMode === "auto"
+        ? `Otomatik · ${power.nightStart || "00:00"}–${power.nightEnd || "08:00"} · Uyku ve ağ kesintisi yok`
+        : `Elle seçildi · Uyku ve ağ kesintisi yok · ${powerLabels[power.effectiveMode] || ""}`;
+      if (document.activeElement !== $("night-start")) $("night-start").value = power.nightStart || "00:00";
+      if (document.activeElement !== $("night-end")) $("night-end").value = power.nightEnd || "08:00";
+      const powerAllowed = data.permissions?.power === true;
+      for (const button of document.querySelectorAll("[data-power-mode]")) {
+        button.disabled = !powerAllowed || power.available !== true;
+        button.classList.toggle("active", button.dataset.powerMode === power.controlMode);
+      }
+      $("night-start").disabled = !powerAllowed || power.available !== true;
+      $("night-end").disabled = !powerAllowed || power.available !== true;
+      $("save-power-schedule").disabled = !powerAllowed || power.available !== true;
+
       const online = Boolean(data.service?.running && data.port?.listening && data.bootstrap >= 100);
       const relayListed = data.consensus?.running === true;
       const snowflakeRunning = data.snowflake?.running === true;
@@ -740,8 +806,10 @@
       $("settings").disabled = !settingsAllowed;
       $("settings").title = settingsAllowed ? "Relay ayarlarını aç" : "Ayarlar yalnızca Windows bilgisayarındaki localhost panelinden değiştirilebilir";
       $("access-note").textContent = settingsAllowed
-        ? "Windows’ta ayarlar açık · Tailscale’den salt okunur"
-        : "Tailscale bağlantısı · salt okunur";
+        ? "Windows’ta Tor ve güç ayarları açık"
+        : powerAllowed
+          ? "Tailscale bağlantısı · güç kontrolü açık · Tor ayarları salt okunur"
+          : "Salt okunur bağlantı";
 
       const logs = Array.isArray(data.logs) ? data.logs : [];
       $("logs").innerHTML = logs.length ? logs.map(line => {
@@ -766,6 +834,44 @@
         $("main-subtitle").textContent = "Panel servisiyle bağlantı kurulamadı. Sayfayı yenilemeyi dene.";
         document.body.classList.remove("loading");
       }
+    }
+
+    async function setPowerMode(mode, includeSchedule = false) {
+      if (!latestData?.permissions?.power) return;
+      const message = $("power-message");
+      const buttons = [...document.querySelectorAll("[data-power-mode]")];
+      buttons.forEach(button => button.disabled = true);
+      $("save-power-schedule").disabled = true;
+      message.textContent = "Güç modu uygulanıyor…";
+      try {
+        const payload = { mode };
+        if (includeSchedule) {
+          payload.nightStart = $("night-start").value;
+          payload.nightEnd = $("night-end").value;
+        }
+        const response = await fetch("/api/power", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Güç modu uygulanamadı.");
+        message.textContent = mode === "auto"
+          ? `Otomatik gece modu ${result.power.nightStart}–${result.power.nightEnd} etkin.`
+          : `${powerModeText(mode)} etkin.`;
+        await refresh();
+      } catch (error) {
+        message.textContent = error.message || "Güç modu uygulanamadı.";
+      }
+    }
+
+    function powerModeText(mode) {
+      return {
+        auto: "Otomatik mod",
+        eco: "Gece tasarrufu",
+        balanced: "Dengeli mod",
+        performance: "Yüksek performans",
+      }[mode] || "Güç modu";
     }
 
     function syncQuotaField() {
@@ -825,6 +931,10 @@
     }
 
     $("refresh").addEventListener("click", refresh);
+    for (const button of document.querySelectorAll("[data-power-mode]")) {
+      button.addEventListener("click", () => setPowerMode(button.dataset.powerMode));
+    }
+    $("save-power-schedule").addEventListener("click", () => setPowerMode("auto", true));
     $("settings").addEventListener("click", openSettings);
     $("close-settings").addEventListener("click", () => $("settings-dialog").close());
     $("cancel-settings").addEventListener("click", () => $("settings-dialog").close());

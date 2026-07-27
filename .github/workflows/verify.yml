@@ -11,8 +11,8 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
       - name: Verify Windows and dashboard sources
@@ -22,13 +22,13 @@ jobs:
   macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Type-check menu bar app
         run: >
           xcrun --sdk macosx swiftc
           -parse-as-library
           -typecheck
           -target "$(uname -m)-apple-macos13.0"
-          macos/Sources/RelayWatchApp.swift
+          macos/Sources/LOLILEApp.swift
           -framework SwiftUI
           -framework AppKit

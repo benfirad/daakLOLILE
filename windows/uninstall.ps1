@@ -6,18 +6,27 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$installRoot = 'C:\ProgramData\RelayWatch'
-$hardwareTask = 'RelayWatch Hardware Monitor'
-$dashboardTask = 'RelayWatch Dashboard'
-$firewallRule = 'RelayWatch Dashboard (Tailscale only)'
+$installRoot = 'C:\ProgramData\LOLILE'
+$hardwareTask = 'LOLILE Hardware Monitor'
+$dashboardTask = 'LOLILE Dashboard'
+$powerTask = 'LOLILE Power Manager'
+$firewallRule = 'LOLILE Dashboard (Tailscale only)'
 
-$answer = Read-Host 'Remove RelayWatch tasks, firewall rule and installed files? Type REMOVE'
+$answer = Read-Host 'Remove LOLILE tasks, firewall rule and installed files? Type REMOVE'
 if ($answer -cne 'REMOVE') {
     Write-Host 'Cancelled.'
     exit 0
 }
 
-foreach ($task in @($hardwareTask,$dashboardTask)) {
+if (Test-Path -LiteralPath (Join-Path $installRoot 'power-manager.ps1')) {
+    & (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe') `
+        -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+        -File (Join-Path $installRoot 'power-manager.ps1') `
+        -Action Restore `
+        -InstallRoot $installRoot | Out-Null
+}
+
+foreach ($task in @($hardwareTask,$dashboardTask,$powerTask)) {
     Get-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue |
         Stop-ScheduledTask -ErrorAction SilentlyContinue
     Unregister-ScheduledTask -TaskName $task -Confirm:$false -ErrorAction SilentlyContinue
@@ -29,21 +38,21 @@ Get-NetFirewallRule -DisplayName $firewallRule -ErrorAction SilentlyContinue |
 Get-CimInstance Win32_Process |
     Where-Object {
         $_.Name -in @('powershell.exe','node.exe') -and
-        $_.CommandLine -match '(?i)C:\\ProgramData\\RelayWatch'
+        $_.CommandLine -match '(?i)C:\\ProgramData\\LOLILE'
     } |
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
-$shortcut = Join-Path ([Environment]::GetFolderPath('Startup')) 'RelayWatch Widget.lnk'
+$shortcut = Join-Path ([Environment]::GetFolderPath('Startup')) 'LOLILE Widget.lnk'
 if (Test-Path -LiteralPath $shortcut) {
     Remove-Item -LiteralPath $shortcut -Force
 }
 
 if (-not $KeepData -and (Test-Path -LiteralPath $installRoot)) {
     $resolved = (Resolve-Path -LiteralPath $installRoot).Path
-    if ($resolved -cne 'C:\ProgramData\RelayWatch') {
+    if ($resolved -cne 'C:\ProgramData\LOLILE') {
         throw "Refusing to remove unexpected path: $resolved"
     }
     Remove-Item -LiteralPath $resolved -Recurse -Force
 }
 
-Write-Host 'RelayWatch was removed. Tor, Snowflake, Tailscale and their data were not modified.' -ForegroundColor Green
+Write-Host 'LOLILE was removed. Tor, Snowflake, Tailscale and their data were not modified.' -ForegroundColor Green

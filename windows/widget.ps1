@@ -4,7 +4,7 @@ Add-Type -AssemblyName WindowsBase
 Add-Type -AssemblyName System.Windows.Forms
 
 $createdNew = $false
-$widgetMutex = New-Object System.Threading.Mutex($true, 'Local\RelayWatchWidget', [ref]$createdNew)
+$widgetMutex = New-Object System.Threading.Mutex($true, 'Local\LOLILEWidget', [ref]$createdNew)
 if (-not $createdNew) {
     exit 0
 }
@@ -38,7 +38,7 @@ $xaml = @'
         </Grid.ColumnDefinitions>
         <Ellipse x:Name="StatusDot" Width="7" Height="7" Fill="#E9B95D" Margin="0,1,8,0"/>
         <StackPanel Grid.Column="1">
-          <TextBlock Text="RELAYWATCH · TOR DESTEĞİ" Foreground="#9B94A3" FontSize="8" FontWeight="SemiBold"/>
+          <TextBlock Text="LOLILE · SİSTEM DESTEĞİ" Foreground="#9B94A3" FontSize="8" FontWeight="SemiBold"/>
           <TextBlock x:Name="StatusText" Text="Bağlanıyor" Foreground="#F4F1F6" FontSize="14"
                      FontWeight="SemiBold" Margin="0,1,0,0"/>
         </StackPanel>
@@ -161,7 +161,13 @@ function Update-Widget {
         $portText.Text = if ($snowflakeOnline) { "$completedConnections bağlantı" } else { 'Kapalı' }
         $consensusText.Text = if ($data.consensus.running) { 'Listede' } elseif ($data.consensus.found) { 'Bekliyor' } else { 'Henüz yok' }
         if ($data.hardware.available -eq $true) {
-            $powerText.Text = "PC $([Math]::Round([double]$data.hardware.power.wallEstimateWatts)) W"
+            $modeLabel = switch ([string]$data.power.effectiveMode) {
+                'eco' { 'EKO' }
+                'performance' { 'HIZ' }
+                'balanced' { 'DENGE' }
+                default { '—' }
+            }
+            $powerText.Text = "$([Math]::Round([double]$data.hardware.power.wallEstimateWatts)) W · $modeLabel"
             $cpuText.Text = "CPU %$([Math]::Round([double]$data.hardware.cpu.loadPercent))"
             $gpuTemp = if ($null -ne $data.hardware.gpu.temperatureC) { "$([Math]::Round([double]$data.hardware.gpu.temperatureC))°" } else { "%$([Math]::Round([double]$data.hardware.gpu.loadPercent))" }
             $gpuText.Text = "GPU $gpuTemp"

@@ -1,7 +1,7 @@
 #requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$InstallRoot = 'C:\ProgramData\RelayWatch',
+    [string]$InstallRoot = 'C:\ProgramData\LOLILE',
     [int]$SampleSeconds = 2
 )
 

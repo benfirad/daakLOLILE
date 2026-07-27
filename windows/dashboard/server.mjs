@@ -6,8 +6,8 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
-const root = process.env.RELAYWATCH_PUBLIC_ROOT || "C:\\ProgramData\\RelayWatch\\dashboard\\public";
-const appRoot = process.env.RELAYWATCH_ROOT || "C:\\ProgramData\\RelayWatch";
+const root = process.env.RELAYWATCH_PUBLIC_ROOT || "C:\\ProgramData\\LOLILE\\dashboard\\public";
+const appRoot = process.env.RELAYWATCH_ROOT || "C:\\ProgramData\\LOLILE";
 const torRoot = process.env.TOR_ROOT || "C:\\ProgramData\\TorRelay";
 const torrcPath = join(torRoot, "torrc");
 const torExe = join(torRoot, "tor", "tor.exe");
@@ -17,6 +17,8 @@ const trafficPath = join(appRoot, "data", "traffic.json");
 const snowflakeTrafficPath = join(appRoot, "data", "snowflake-traffic.json");
 const snowflakeLogPath = process.env.SNOWFLAKE_LOG_PATH || "C:\\ProgramData\\SnowflakeProxy\\logs\\snowflake.log";
 const hardwareStatusPath = process.env.RELAYWATCH_HARDWARE_STATUS || join(appRoot, "hardware-status.json");
+const powerManagerPath = process.env.LOLILE_POWER_MANAGER || join(appRoot, "power-manager.ps1");
+const powerStatusPath = process.env.LOLILE_POWER_STATUS || join(appRoot, "power-status.json");
 const port = Number(process.env.RELAYWATCH_PORT || 17657);
 const orPort = Number(process.env.TOR_OR_PORT || 9001);
 const configuredServiceName = String(process.env.TOR_SERVICE_NAME || "tor");
@@ -84,6 +86,17 @@ function isLoopback(address) {
   return address === "127.0.0.1" || address === "::1" || address === "::ffff:127.0.0.1";
 }
 
+function isTailscale(address = "") {
+  const value = String(address).replace(/^::ffff:/i, "").toLowerCase();
+  if (value.startsWith("fd7a:115c:a1e0:")) return true;
+  const parts = value.split(".").map(Number);
+  return parts.length === 4
+    && parts.every(part => Number.isInteger(part) && part >= 0 && part <= 255)
+    && parts[0] === 100
+    && parts[1] >= 64
+    && parts[1] <= 127;
+}
+
 function normalizeContact(value) {
   return value.replace(/^email:/i, "").trim();
 }
@@ -124,7 +137,7 @@ async function consensusStatus() {
   try {
     const response = await fetch(`https://onionoo.torproject.org/details?lookup=${fingerprint}`, {
       signal: AbortSignal.timeout(5000),
-      headers: { "User-Agent": "RelayWatch/1.0" },
+      headers: { "User-Agent": "LOLILE/2.0" },
     });
     const body = await response.json();
     const relay = body.relays?.[0];
@@ -348,8 +361,55 @@ async function hardwareStatus() {
   }
 }
 
-async function buildStatus(settingsAllowed = false) {
-  const [config, state, log, system, consensus, snowflake, hardware, fingerprint] = await Promise.all([
+async function powerStatus() {
+  try {
+    const value = JSON.parse((await readFile(powerStatusPath, "utf8")).replace(/^\uFEFF/, ""));
+    const updated = Date.parse(value.updatedAt);
+    return {
+      ...value,
+      available: value.available === true,
+      ageSeconds: Number.isFinite(updated) ? Math.max(0, (Date.now() - updated) / 1000) : null,
+    };
+  } catch {
+    return {
+      available: false,
+      controlMode: "unknown",
+      effectiveMode: "unknown",
+      nightStart: "00:00",
+      nightEnd: "08:00",
+      safeguards: { services: [], snowflake: false, sleepDisabled: true },
+    };
+  }
+}
+
+async function setPowerMode(input) {
+  const mode = String(input.mode || "").toLowerCase();
+  const nightStart = String(input.nightStart || "");
+  const nightEnd = String(input.nightEnd || "");
+  if (!["auto", "eco", "balanced", "performance"].includes(mode)) {
+    throw new Error("Geçersiz güç modu.");
+  }
+  if (nightStart && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(nightStart)) {
+    throw new Error("Gece başlangıcı SS:DD biçiminde olmalı.");
+  }
+  if (nightEnd && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(nightEnd)) {
+    throw new Error("Gece bitişi SS:DD biçiminde olmalı.");
+  }
+  const args = [
+    "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+    "-File", powerManagerPath, "-Action", "Set", "-Mode", mode, "-InstallRoot", appRoot,
+  ];
+  if (nightStart) args.push("-NightStart", nightStart);
+  if (nightEnd) args.push("-NightEnd", nightEnd);
+  await execFileAsync("powershell.exe", args, {
+    windowsHide: true,
+    timeout: 30000,
+  });
+  return powerStatus();
+}
+
+async function buildStatus(settingsAllowed = false, powerAllowed = false) {
+  const [config, state, log, system, consensus, snowflake, hardware, power, fingerprint] = await Promise.all([
     text(torrcPath),
     text(join(torRoot, "data", "state")),
     text(join(torRoot, "log", "notices.log")),
@@ -357,6 +417,7 @@ async function buildStatus(settingsAllowed = false) {
     consensusStatus(),
     snowflakeStatus(),
     hardwareStatus(),
+    powerStatus(),
     relayFingerprint(),
   ]);
   const readHistory = stateSeries(state, "BWHistoryReadValues");
@@ -383,7 +444,8 @@ async function buildStatus(settingsAllowed = false) {
 
   return {
     updatedAt: new Date().toISOString(),
-    permissions: { settings: settingsAllowed },
+    product: "LOLILE",
+    permissions: { settings: settingsAllowed, power: powerAllowed },
     service: { running: system.running, startMode: system.startMode },
     port: { listening: system.listening, number: orPort },
     localIp: system.localIp,
@@ -393,6 +455,7 @@ async function buildStatus(settingsAllowed = false) {
     consensus,
     snowflake,
     hardware,
+    power,
     support: { total: total + snowflake.traffic.total },
     config: {
       nickname: configValue(config, "Nickname"),
@@ -548,10 +611,21 @@ function sendJson(res, statusCode, value) {
 
 const server = createServer(async (req, res) => {
   const localRequest = isLoopback(req.socket.remoteAddress);
+  const tailscaleRequest = isTailscale(req.socket.remoteAddress);
+  const powerAllowed = localRequest || tailscaleRequest;
   try {
     const url = new URL(req.url || "/", `http://${req.headers.host || "127.0.0.1"}`);
     if (url.pathname === "/api/status" && req.method === "GET") {
-      sendJson(res, 200, await buildStatus(localRequest));
+      sendJson(res, 200, await buildStatus(localRequest, powerAllowed));
+      return;
+    }
+    if (url.pathname === "/api/power" && req.method === "POST") {
+      if (!powerAllowed) {
+        sendJson(res, 403, { error: "Güç modu yalnızca bu bilgisayardan veya özel Tailscale ağından değiştirilebilir." });
+        return;
+      }
+      const power = await setPowerMode(await parseBody(req));
+      sendJson(res, 200, { ok: true, power });
       return;
     }
     if (url.pathname === "/api/settings" && req.method === "POST") {
@@ -560,7 +634,7 @@ const server = createServer(async (req, res) => {
         return;
       }
       await applySettings(await parseBody(req));
-      sendJson(res, 200, { ok: true, status: await buildStatus(true) });
+      sendJson(res, 200, { ok: true, status: await buildStatus(true, true) });
       return;
     }
     if (req.method !== "GET" && req.method !== "HEAD") {
@@ -588,5 +662,5 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(port, "0.0.0.0", () => {
-  console.log(`RelayWatch: http://127.0.0.1:${port} (remote access is read-only)`);
+  console.log(`LOLILE: http://127.0.0.1:${port} (power control is limited to localhost and Tailscale)`);
 });

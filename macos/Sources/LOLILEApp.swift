@@ -3,6 +3,10 @@ import AppKit
 import Foundation
 
 private struct RelayStatus: Decodable {
+    struct Permissions: Decodable {
+        let power: Bool?
+    }
+
     struct Service: Decodable {
         let running: Bool
     }
@@ -49,6 +53,14 @@ private struct RelayStatus: Decodable {
 
     struct Support: Decodable {
         let total: Double
+    }
+
+    struct PowerMode: Decodable {
+        let available: Bool
+        let controlMode: String
+        let effectiveMode: String
+        let nightStart: String
+        let nightEnd: String
     }
 
     struct Hardware: Decodable {
@@ -100,6 +112,7 @@ private struct RelayStatus: Decodable {
     }
 
     let updatedAt: String
+    let permissions: Permissions?
     let service: Service
     let port: Port
     let bootstrap: Int
@@ -109,6 +122,7 @@ private struct RelayStatus: Decodable {
     let snowflake: Snowflake?
     let support: Support?
     let hardware: Hardware?
+    let power: PowerMode?
 }
 
 @MainActor
@@ -116,10 +130,11 @@ private final class RelayMonitor: ObservableObject {
     @Published private(set) var status: RelayStatus?
     @Published private(set) var lastError: String?
     @Published private(set) var isRefreshing = false
+    @Published private(set) var isSettingPower = false
     @Published var host: String
 
     private var timer: Timer?
-    private let hostKey = "relayWatchHost"
+    private let hostKey = "lolileHost"
 
     init() {
         host = UserDefaults.standard.string(forKey: hostKey) ?? ""
@@ -145,12 +160,12 @@ private final class RelayMonitor: ObservableObject {
     }
 
     var menuTitle: String {
-        guard let status else { return "RelayWatch —" }
+        guard let status else { return "LOLILE —" }
         if status.hardware?.available == true,
            let watts = status.hardware?.power?.wallEstimateWatts {
-            return "RelayWatch \(String(format: "%.0f W", watts))"
+            return "LOLILE \(String(format: "%.0f W", watts))"
         }
-        return "RelayWatch \(Self.formatGigabytes(status.support?.total ?? status.traffic.total))"
+        return "LOLILE \(Self.formatGigabytes(status.support?.total ?? status.traffic.total))"
     }
 
     var baseURL: URL? {
@@ -179,7 +194,7 @@ private final class RelayMonitor: ObservableObject {
             var request = URLRequest(url: url)
             request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
             request.timeoutInterval = 8
-            request.setValue("RelayWatchMenu/1.0", forHTTPHeaderField: "User-Agent")
+            request.setValue("LOLILEMenu/2.0", forHTTPHeaderField: "User-Agent")
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 throw MonitorError.badResponse
@@ -195,6 +210,28 @@ private final class RelayMonitor: ObservableObject {
     func openDashboard() {
         guard let baseURL else { return }
         NSWorkspace.shared.open(baseURL)
+    }
+
+    func setPowerMode(_ mode: String) async {
+        guard let baseURL, status?.permissions?.power == true else { return }
+        isSettingPower = true
+        defer { isSettingPower = false }
+        do {
+            let url = baseURL.appendingPathComponent("api/power")
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 12
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("LOLILEMenu/2.0", forHTTPHeaderField: "User-Agent")
+            request.httpBody = try JSONSerialization.data(withJSONObject: ["mode": mode])
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                throw MonitorError.badResponse
+            }
+            await refresh()
+        } catch {
+            lastError = "Güç modu değiştirilemedi. Tailscale bağlantısını kontrol et."
+        }
     }
 
     static func formatBytes(_ bytes: Double) -> String {
@@ -301,7 +338,7 @@ private struct RelayMenuView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("RelayWatch")
+                    Text("LOLILE")
                         .font(.headline)
                     Text("Windows sistem monitörü")
                         .font(.caption)
@@ -357,6 +394,37 @@ private struct RelayMenuView: View {
                 }
 
                 Divider()
+
+                if let power = status.power, power.available {
+                    VStack(alignment: .leading, spacing: 9) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Güç modu")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(powerModeLabel(power.effectiveMode))
+                                    .font(.headline)
+                            }
+                            Spacer()
+                            Text(power.controlMode == "auto" ? "\(power.nightStart)–\(power.nightEnd)" : "Elle seçildi")
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                        }
+
+                        HStack(spacing: 6) {
+                            powerButton("Oto", mode: "auto", selected: power.controlMode == "auto")
+                            powerButton("Eko", mode: "eco", selected: power.controlMode == "eco")
+                            powerButton("Denge", mode: "balanced", selected: power.controlMode == "balanced")
+                            powerButton("Hız", mode: "performance", selected: power.controlMode == "performance")
+                        }
+
+                        Text("Uyku kapalıdır; Tor, Tailscale, uzaktan masaüstü ve disk paylaşımı çalışmaya devam eder.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Divider()
+                }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Ağ desteği")
@@ -453,10 +521,28 @@ private struct RelayMenuView: View {
             draftHost = monitor.host
         }
     }
+
+    private func powerButton(_ title: String, mode: String, selected: Bool) -> some View {
+        Button(title) {
+            Task { await monitor.setPowerMode(mode) }
+        }
+        .buttonStyle(.bordered)
+        .tint(selected ? .green : .purple)
+        .disabled(monitor.isSettingPower || monitor.status?.permissions?.power != true)
+    }
+
+    private func powerModeLabel(_ mode: String) -> String {
+        switch mode {
+        case "eco": return "Gece tasarrufu"
+        case "performance": return "Yüksek performans"
+        case "balanced": return "Dengeli"
+        default: return "Hazırlanıyor"
+        }
+    }
 }
 
 @main
-struct RelayWatchApp: App {
+struct LOLILEApp: App {
     @StateObject private var monitor = RelayMonitor()
 
     var body: some Scene {
