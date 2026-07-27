@@ -1,0 +1,22 @@
+# Runtime and local data
+data/
+*.log
+*.tmp
+*.previous
+
+# Secrets and environment
+.env
+.env.*
+*.pem
+*.key
+control_auth_cookie
+
+# Build output
+build/
+dist/
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+*.swp

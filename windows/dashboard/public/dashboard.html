@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0d0c10">
+  <title>RelayWatch · Tor Relay and PC Monitor</title>
+  <meta name="description" content="Private Windows Tor relay, Snowflake and hardware monitoring dashboard with a macOS menu bar companion.">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0d0c10;
+      --panel: #15131a;
+      --panel-2: #1b1821;
+      --line: #2d2835;
+      --text: #f4f1f6;
+      --muted: #9b94a3;
+      --purple: #a875d2;
+      --purple-bright: #c69bea;
+      --green: #64d692;
+      --amber: #e9b95d;
+      --red: #ef7d7d;
+      --mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 77% -20%, rgba(111, 64, 141, .22), transparent 35rem),
+        var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input, a { font: inherit; }
+    button:focus-visible, input:focus-visible, a:focus-visible {
+      outline: 2px solid var(--purple-bright);
+      outline-offset: 3px;
+    }
+    .shell { width: min(1220px, calc(100% - 40px)); margin: 0 auto; padding: 28px 0 48px; }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .onion {
+      width: 42px;
+      height: 42px;
+      border: 2px solid var(--purple-bright);
+      border-radius: 50% 50% 45% 45%;
+      position: relative;
+      box-shadow: inset 0 0 0 6px #17131c, inset 0 0 0 8px rgba(198,155,234,.45);
+    }
+    .onion::before {
+      content: "";
+      position: absolute;
+      width: 8px;
+      height: 11px;
+      border-left: 2px solid var(--green);
+      border-top: 2px solid var(--green);
+      border-radius: 8px 0 0 0;
+      left: 19px;
+      top: -9px;
+      transform: rotate(22deg);
+    }
+    .eyebrow { color: var(--muted); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; }
+    h1 { margin: 3px 0 0; font-size: 22px; letter-spacing: -.02em; }
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+    .stamp { color: var(--muted); font-size: 12px; padding-right: 8px; }
+    .button {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      min-height: 40px;
+      padding: 0 15px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: border-color .2s, background .2s, transform .2s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .button:hover:not(:disabled) { border-color: #54495f; background: var(--panel-2); transform: translateY(-1px); }
+    .button.primary { background: #744b90; border-color: #8f61ac; }
+    .button.primary:hover:not(:disabled) { background: #8457a1; }
+    .button:disabled { cursor: not-allowed; opacity: .42; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+    .card {
+      background: linear-gradient(145deg, rgba(27,24,33,.96), rgba(20,18,25,.96));
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+      min-width: 0;
+      box-shadow: 0 18px 55px rgba(0,0,0,.13);
+    }
+    .hero { grid-column: span 12; display: grid; grid-template-columns: 1.1fr .9fr; gap: 26px; padding: 26px; }
+    .hero-copy { display: flex; flex-direction: column; justify-content: space-between; min-height: 170px; }
+    .live-row { display: flex; align-items: center; gap: 10px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 5px rgba(233,185,93,.09); }
+    .dot.online { background: var(--green); box-shadow: 0 0 0 5px rgba(100,214,146,.1), 0 0 22px rgba(100,214,146,.3); }
+    .dot.offline { background: var(--red); box-shadow: 0 0 0 5px rgba(239,125,125,.1); }
+    .state-title { margin: 14px 0 4px; font-size: clamp(30px, 4vw, 48px); letter-spacing: -.055em; line-height: 1; }
+    .state-subtitle { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+    .identity { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 26px; }
+    .identity span { color: var(--muted); font-size: 11px; display: block; margin-bottom: 5px; }
+    .identity strong { font-size: 13px; font-family: var(--mono); font-weight: 500; }
+    .hero-side {
+      border-left: 1px solid var(--line);
+      padding-left: 26px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      align-content: center;
+    }
+    .mini { padding: 15px; border-radius: 12px; background: rgba(255,255,255,.025); border: 1px solid rgba(255,255,255,.045); }
+    .mini-label, .card-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .11em; }
+    .mini-value { margin-top: 9px; font-size: 18px; font-weight: 650; letter-spacing: -.02em; }
+    .mini-value.good { color: var(--green); }
+    .mini-value.pending { color: var(--amber); }
+    .usage { grid-column: span 8; }
+    .health { grid-column: span 4; }
+    .logs { grid-column: span 8; }
+    .network { grid-column: span 4; }
+    .snowflake { grid-column: span 12; }
+    .hardware { grid-column: span 12; overflow: hidden; }
+    .hardware-layout {
+      display: grid;
+      grid-template-columns: minmax(230px, .72fr) 2fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+    .power-hero {
+      min-height: 228px;
+      padding: 22px;
+      border: 1px solid rgba(198,155,234,.16);
+      border-radius: 15px;
+      background:
+        radial-gradient(circle at 82% 8%, rgba(168,117,210,.24), transparent 46%),
+        #100e14;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .power-live { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+    .power-number { margin-top: 14px; font-size: clamp(50px, 7vw, 78px); line-height: .9; letter-spacing: -.07em; font-weight: 680; }
+    .power-number small { font-size: 19px; font-weight: 520; color: var(--purple-bright); letter-spacing: -.02em; }
+    .power-range { margin-top: 10px; color: var(--muted); font-family: var(--mono); font-size: 11px; }
+    .power-note { color: #7f7787; font-size: 10px; line-height: 1.5; }
+    .sensor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .sensor {
+      min-height: 108px;
+      padding: 16px;
+      border-radius: 13px;
+      border: 1px solid rgba(255,255,255,.055);
+      background: rgba(255,255,255,.024);
+    }
+    .sensor-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+    .sensor-name { color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+    .sensor-value { font-family: var(--mono); font-size: 17px; font-weight: 600; }
+    .sensor-meta { margin-top: 8px; color: #8a8291; font-size: 11px; display: flex; justify-content: space-between; gap: 8px; }
+    .meter { height: 5px; border-radius: 99px; background: #2a2530; overflow: hidden; }
+    .meter > span { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, #744b90, var(--purple-bright)); transition: width .45s ease; }
+    .hardware-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .hardware-strip > div { border-top: 1px solid var(--line); padding-top: 12px; }
+    .hardware-strip span { color: var(--muted); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; display: block; }
+    .hardware-strip strong { display: block; margin-top: 6px; font-family: var(--mono); font-size: 12px; font-weight: 500; }
+    .power-chart { height: 50px; display: flex; align-items: end; gap: 3px; margin-top: 15px; }
+    .power-bar { flex: 1; min-width: 2px; min-height: 3px; border-radius: 2px 2px 0 0; background: linear-gradient(to top, rgba(100,214,146,.18), rgba(100,214,146,.85)); transition: height .4s ease; }
+    .processes-card, .storage-card { grid-column: span 6; }
+    .process-list, .volume-list { display: grid; gap: 10px; }
+    .process-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+    .process-row:last-child { border-bottom: 0; padding-bottom: 0; }
+    .process-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+    .process-cpu, .process-memory { color: var(--muted); font-family: var(--mono); font-size: 11px; text-align: right; }
+    .volume-row { display: grid; gap: 7px; }
+    .volume-head { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
+    .volume-head span { color: var(--muted); font-family: var(--mono); }
+    .snowflake-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .snowflake-grid .mini { min-height: 82px; }
+    .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 22px; }
+    .card h2 { margin: 5px 0 0; font-size: 18px; letter-spacing: -.025em; }
+    .quota-number { font-size: 13px; color: var(--muted); font-family: var(--mono); }
+    .quota-main { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; gap: 20px; }
+    .quota-used { font-size: clamp(28px, 4vw, 44px); letter-spacing: -.05em; font-weight: 680; }
+    .quota-used small { color: var(--muted); font-size: 14px; font-weight: 450; letter-spacing: 0; }
+    .percent { color: var(--purple-bright); font-family: var(--mono); font-size: 13px; }
+    .track { height: 10px; background: #25212b; border-radius: 99px; overflow: hidden; }
+    .fill {
+      height: 100%;
+      width: 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #744b90, var(--purple-bright));
+      box-shadow: 0 0 18px rgba(168,117,210,.35);
+      transition: width .6s ease;
+    }
+    .usage-meta { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-top: 18px; }
+    .usage-meta > div { border-top: 1px solid var(--line); padding-top: 13px; }
+    .usage-meta span { color: var(--muted); font-size: 11px; }
+    .usage-meta strong { display: block; margin-top: 6px; font-family: var(--mono); font-size: 13px; font-weight: 500; }
+    .bars { height: 72px; margin-top: 20px; display: flex; align-items: end; gap: 4px; }
+    .bar {
+      flex: 1;
+      min-width: 3px;
+      height: 3%;
+      border-radius: 3px 3px 1px 1px;
+      background: linear-gradient(to top, rgba(168,117,210,.28), rgba(198,155,234,.88));
+      transition: height .5s ease;
+    }
+    .checks { display: grid; gap: 2px; }
+    .check { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+    .check:last-child { border-bottom: 0; }
+    .check-name { font-size: 13px; }
+    .check-state { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+    .check-state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--amber); }
+    .check-state.good { color: var(--green); }
+    .check-state.good::before { background: var(--green); }
+    .check-state.bad { color: var(--red); }
+    .check-state.bad::before { background: var(--red); }
+    .logbox {
+      height: 245px;
+      overflow: auto;
+      background: #0d0c10;
+      border: 1px solid #29242f;
+      border-radius: 11px;
+      padding: 14px;
+      scrollbar-color: #4b4055 #15131a;
+    }
+    .logline { display: grid; grid-template-columns: 74px 56px 1fr; gap: 10px; font-family: var(--mono); font-size: 11px; line-height: 1.55; padding: 3px 0; color: #bab3c0; }
+    .logtime { color: #6f6877; }
+    .level { color: var(--purple-bright); }
+    .level.warn { color: var(--amber); }
+    .empty { color: var(--muted); font-size: 13px; padding: 20px 0; }
+    .fingerprint {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: #c8c1ce;
+      word-break: break-all;
+      line-height: 1.7;
+      padding: 12px;
+      background: #0d0c10;
+      border: 1px solid #29242f;
+      border-radius: 10px;
+      margin-top: 12px;
+    }
+    .network-list { display: grid; gap: 12px; }
+    .network-row { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+    .network-row:last-child { border-bottom: 0; padding-bottom: 0; }
+    .network-row span { color: var(--muted); font-size: 12px; }
+    .network-row strong { font-size: 12px; font-family: var(--mono); font-weight: 500; text-align: right; overflow-wrap: anywhere; }
+    footer { display: flex; justify-content: space-between; gap: 20px; margin-top: 18px; color: #736c7b; font-size: 11px; padding: 0 4px; }
+    .loading { opacity: .72; }
+
+    dialog {
+      width: min(520px, calc(100% - 28px));
+      border: 1px solid #41394a;
+      border-radius: 18px;
+      padding: 0;
+      background: #15131a;
+      color: var(--text);
+      box-shadow: 0 30px 100px rgba(0,0,0,.62);
+    }
+    dialog::backdrop { background: rgba(5,4,7,.78); backdrop-filter: blur(7px); }
+    .dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 22px 22px 16px; border-bottom: 1px solid var(--line); }
+    .dialog-head h2 { margin: 4px 0 0; font-size: 21px; }
+    .close { width: 36px; min-height: 36px; padding: 0; font-size: 20px; }
+    .settings-form { padding: 22px; display: grid; gap: 18px; }
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field { display: grid; gap: 7px; }
+    .field label { color: #d8d1dd; font-size: 12px; }
+    .field small, .privacy-note { color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .field input[type="number"], .field input[type="email"] {
+      width: 100%;
+      min-height: 43px;
+      border: 1px solid #3a3342;
+      border-radius: 10px;
+      background: #0d0c10;
+      color: var(--text);
+      padding: 0 12px;
+    }
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      border: 1px solid #312b38;
+      background: rgba(255,255,255,.02);
+      border-radius: 12px;
+      padding: 13px 14px;
+    }
+    .switch-row label { font-size: 13px; }
+    .switch-row input { width: 19px; height: 19px; accent-color: #9f6ec0; }
+    .form-message { min-height: 20px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .form-message.error { color: var(--red); }
+    .form-message.success { color: var(--green); }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; }
+      .hero-side { border-left: 0; border-top: 1px solid var(--line); padding: 22px 0 0; }
+      .usage, .health, .logs, .network, .snowflake, .processes-card, .storage-card { grid-column: span 12; }
+      .hardware-layout { grid-template-columns: 1fr; }
+      .snowflake-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 700px) {
+      header { align-items: flex-start; }
+      .header-actions { flex-wrap: wrap; justify-content: flex-end; }
+      .stamp { width: 100%; text-align: right; padding: 0; }
+    }
+    @media (max-width: 620px) {
+      .shell { width: min(100% - 24px, 1220px); padding-top: 18px; }
+      .stamp, .button .wide, .relay-search { display: none; }
+      .hero { padding: 20px; }
+      .hero-side { grid-template-columns: 1fr; }
+      .sensor-grid, .hardware-strip { grid-template-columns: 1fr; }
+      .usage-meta, .field-grid { grid-template-columns: 1fr; }
+      .card { padding: 17px; }
+      .logline { grid-template-columns: 62px 44px 1fr; font-size: 10px; gap: 6px; }
+      footer { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell" id="app">
+    <header>
+      <div class="brand">
+        <div class="onion" aria-hidden="true"></div>
+        <div>
+          <div class="eyebrow">Windows sistem ve Tor operasyon paneli</div>
+          <h1>RelayWatch</h1>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span class="stamp" id="updated">Bağlanıyor…</span>
+        <button class="button" id="settings" type="button" aria-label="Relay ayarlarını aç"><span aria-hidden="true">⚙</span><span class="wide">Ayarlar</span></button>
+        <button class="button" id="refresh" type="button" aria-label="Verileri yenile"><span aria-hidden="true">↻</span><span class="wide">Yenile</span></button>
+        <a class="button primary relay-search" id="relay-search" href="https://metrics.torproject.org/rs.html" target="_blank" rel="noreferrer">Relay Search <span aria-hidden="true">↗</span></a>
+      </div>
+    </header>
+
+    <section class="grid">
+      <article class="card hero">
+        <div class="hero-copy">
+          <div>
+            <div class="live-row"><span class="dot" id="main-dot"></span><span class="card-label" id="main-label">Durum kontrol ediliyor</span></div>
+            <div class="state-title" id="main-title">Bağlanıyor</div>
+            <p class="state-subtitle" id="main-subtitle">Tor servisinden canlı bilgi alınıyor.</p>
+          </div>
+          <div class="identity">
+            <div><span>ROL</span><strong>Middle · Non-exit</strong></div>
+            <div><span>TAKMA AD</span><strong id="nickname">relaywatch</strong></div>
+            <div><span>ORPORT</span><strong id="or-port-label">TCP 9001</strong></div>
+          </div>
+        </div>
+        <div class="hero-side">
+          <div class="mini"><div class="mini-label">Servis</div><div class="mini-value" id="service">—</div></div>
+          <div class="mini"><div class="mini-label">Bootstrap</div><div class="mini-value" id="bootstrap">—</div></div>
+          <div class="mini"><div class="mini-label">Dış erişim</div><div class="mini-value" id="reachability">—</div></div>
+          <div class="mini"><div class="mini-label">Consensus</div><div class="mini-value" id="consensus">—</div></div>
+        </div>
+      </article>
+
+      <article class="card hardware">
+        <div class="card-head">
+          <div>
+            <div class="card-label">Windows PC · canlı telemetri</div>
+            <h2>Güç ve bileşen kullanımı</h2>
+          </div>
+          <div class="live-row"><span class="dot" id="hardware-dot"></span><span class="quota-number" id="hardware-status">Sensörler bekleniyor</span></div>
+        </div>
+        <div class="hardware-layout">
+          <div class="power-hero">
+            <div>
+              <div class="power-live"><span aria-hidden="true">ϟ</span> Tahmini priz tüketimi</div>
+              <div class="power-number"><span id="power-watts">—</span> <small>W</small></div>
+              <div class="power-range" id="power-range">Ölçüm hazırlanıyor</div>
+            </div>
+            <div class="power-note" id="power-method">Akıllı priz bağlı değil; donanım sensörleri ve sistem taban tüketimiyle hesaplanır.</div>
+          </div>
+          <div class="sensor-grid">
+            <div class="sensor">
+              <div class="sensor-head"><span class="sensor-name">İşlemci</span><strong class="sensor-value" id="cpu-load">—</strong></div>
+              <div class="meter"><span id="cpu-meter"></span></div>
+              <div class="sensor-meta"><span id="cpu-temp">Sıcaklık —</span><span id="cpu-power">Güç —</span></div>
+            </div>
+            <div class="sensor">
+              <div class="sensor-head"><span class="sensor-name">Ekran kartı</span><strong class="sensor-value" id="gpu-load">—</strong></div>
+              <div class="meter"><span id="gpu-meter"></span></div>
+              <div class="sensor-meta"><span id="gpu-temp">Sıcaklık —</span><span id="gpu-power">Güç —</span></div>
+            </div>
+            <div class="sensor">
+              <div class="sensor-head"><span class="sensor-name">Bellek</span><strong class="sensor-value" id="memory-load">—</strong></div>
+              <div class="meter"><span id="memory-meter"></span></div>
+              <div class="sensor-meta"><span id="memory-used">—</span><span id="memory-total">—</span></div>
+            </div>
+            <div class="sensor">
+              <div class="sensor-head"><span class="sensor-name">Disk etkinliği</span><strong class="sensor-value" id="disk-load">—</strong></div>
+              <div class="meter"><span id="disk-meter"></span></div>
+              <div class="sensor-meta"><span id="disk-read">Okuma —</span><span id="disk-write">Yazma —</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="hardware-strip">
+          <div><span>Bugünkü enerji</span><strong id="energy-today">—</strong></div>
+          <div><span>Bu ay</span><strong id="energy-month">—</strong></div>
+          <div><span>Ethernet</span><strong id="network-live">—</strong></div>
+          <div><span>Çalışma süresi</span><strong id="machine-uptime">—</strong></div>
+        </div>
+        <div class="power-chart" id="power-chart" aria-label="Yakın dönem tahmini güç grafiği"></div>
+      </article>
+
+      <article class="card processes-card">
+        <div class="card-head"><div><div class="card-label">Canlı sıralama</div><h2>En çok kaynak kullananlar</h2></div><span class="quota-number">CPU · RAM</span></div>
+        <div class="process-list" id="process-list"><div class="empty">İşlem verisi hazırlanıyor…</div></div>
+      </article>
+
+      <article class="card storage-card">
+        <div class="card-head"><div><div class="card-label">Depolama</div><h2>Disk dolulukları</h2></div><span class="quota-number" id="storage-summary">—</span></div>
+        <div class="volume-list" id="volume-list"><div class="empty">Disk bilgisi hazırlanıyor…</div></div>
+      </article>
+
+      <article class="card usage">
+        <div class="card-head">
+          <div><div class="card-label" id="traffic-period">Bu ay</div><h2>Tor’a aktarılan trafik</h2></div>
+          <div class="quota-number" id="quota-label">Aylık sınır yok</div>
+        </div>
+        <div class="quota-main">
+          <div class="quota-used"><span id="used">—</span> <small>destek</small></div>
+          <div class="percent" id="percent">—</div>
+        </div>
+        <div class="track" role="progressbar" aria-label="Aylık trafik kullanımı" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress"><div class="fill" id="fill"></div></div>
+        <div class="usage-meta">
+          <div><span>GELEN</span><strong id="read">—</strong></div>
+          <div><span>GİDEN</span><strong id="write">—</strong></div>
+          <div><span>KALAN</span><strong id="remaining">Sınırsız</strong></div>
+        </div>
+        <div class="bars" id="bars" aria-label="Yakın dönem trafik grafiği"></div>
+      </article>
+
+      <article class="card health">
+        <div class="card-head"><div><div class="card-label">Kontrol listesi</div><h2>Relay sağlığı</h2></div></div>
+        <div class="checks">
+          <div class="check"><span class="check-name">Windows servisi</span><span class="check-state" id="check-service">Kontrol</span></div>
+          <div class="check"><span class="check-name">Tor ağı bağlantısı</span><span class="check-state" id="check-bootstrap">Kontrol</span></div>
+          <div class="check"><span class="check-name" id="check-port-name">9001 portu</span><span class="check-state" id="check-port">Kontrol</span></div>
+          <div class="check"><span class="check-name">Non-exit kilidi</span><span class="check-state" id="check-exit">Kontrol</span></div>
+          <div class="check"><span class="check-name">Aylık kota</span><span class="check-state" id="check-quota">Kontrol</span></div>
+        </div>
+      </article>
+
+      <article class="card snowflake">
+        <div class="card-head">
+          <div><div class="card-label">Sansür karşıtı destek</div><h2>Tor Snowflake proxy</h2></div>
+          <div class="quota-number" id="snowflake-label">Kontrol ediliyor</div>
+        </div>
+        <p class="state-subtitle">CGNAT arkasında da çalışır; Tor’un engellendiği yerlerdeki kullanıcıların ağa bağlanmasına yardımcı olur. Exit değildir.</p>
+        <div class="snowflake-grid">
+          <div class="mini"><div class="mini-label">Durum</div><div class="mini-value" id="snowflake-status">—</div></div>
+          <div class="mini"><div class="mini-label">NAT türü</div><div class="mini-value" id="snowflake-nat">—</div></div>
+          <div class="mini"><div class="mini-label">Yardım edilen bağlantı</div><div class="mini-value" id="snowflake-connections">—</div></div>
+          <div class="mini"><div class="mini-label">Snowflake trafiği</div><div class="mini-value" id="snowflake-traffic">—</div></div>
+          <div class="mini"><div class="mini-label">Toplam destek</div><div class="mini-value" id="support-total">—</div></div>
+        </div>
+      </article>
+
+      <article class="card logs">
+        <div class="card-head"><div><div class="card-label">Son olaylar</div><h2>Tor günlüğü</h2></div><span class="quota-number">Canlı · son 30 satır</span></div>
+        <div class="logbox" id="logs"><div class="empty">Günlük yükleniyor…</div></div>
+      </article>
+
+      <article class="card network">
+        <div class="card-head"><div><div class="card-label">Yapılandırma</div><h2>Ağ ayrıntıları</h2></div></div>
+        <div class="network-list">
+          <div class="network-row"><span>Sürekli hız</span><strong id="rate">~300 Mbps</strong></div>
+          <div class="network-row"><span>Kısa süreli</span><strong id="burst">~700 Mbps</strong></div>
+          <div class="network-row"><span>Yerel IP</span><strong id="local-ip">—</strong></div>
+          <div class="network-row"><span>Tailscale IP</span><strong id="tailscale-ip">—</strong></div>
+          <div class="network-row"><span>Başlangıç</span><strong>Otomatik</strong></div>
+          <div class="network-row"><span>ContactInfo</span><strong id="contact-info">—</strong></div>
+        </div>
+        <div class="card-label" style="margin-top:20px">FINGERPRINT</div>
+        <div class="fingerprint" id="fingerprint">Henüz oluşmadı</div>
+      </article>
+    </section>
+
+    <footer><span id="access-note">Windows’ta ayarlar açık · Tailscale’den salt okunur</span><span>5 saniyede bir otomatik yenilenir</span></footer>
+  </main>
+
+  <dialog id="settings-dialog" aria-labelledby="settings-title">
+    <div class="dialog-head">
+      <div><div class="eyebrow">Tor yapılandırması</div><h2 id="settings-title">Relay ayarları</h2></div>
+      <button class="button close" id="close-settings" type="button" aria-label="Ayarları kapat">×</button>
+    </div>
+    <form class="settings-form" id="settings-form">
+      <div class="field-grid">
+        <div class="field">
+          <label for="rate-input">Sürekli hız (Mbps)</label>
+          <input id="rate-input" name="rateMbps" type="number" min="1" max="1000" step="1" required>
+          <small>Normal relay trafiği için ortalama sınır.</small>
+        </div>
+        <div class="field">
+          <label for="burst-input">Kısa süreli hız (Mbps)</label>
+          <input id="burst-input" name="burstMbps" type="number" min="1" max="1000" step="1" required>
+          <small>Sürekli hızdan düşük olamaz.</small>
+        </div>
+      </div>
+      <div class="switch-row">
+        <label for="unlimited-input">Aylık trafik sınırı olmasın</label>
+        <input id="unlimited-input" name="unlimited" type="checkbox">
+      </div>
+      <div class="field" id="quota-field">
+        <label for="quota-input">Aylık kota (GB)</label>
+        <input id="quota-input" name="quotaGB" type="number" min="10" max="1000000" step="1">
+        <small>Örnek: 2000 GB = 2 TB. Gelen ve giden trafik toplamı sayılır.</small>
+      </div>
+      <div class="field">
+        <label for="contact-input">ContactInfo e-posta</label>
+        <input id="contact-input" name="contactInfo" type="email" maxlength="200" autocomplete="email" placeholder="operator@example.com">
+        <small>Boş bırakabilirsin. Yazılan bilgi Tor relay dizininde herkese açık olur.</small>
+      </div>
+      <div class="privacy-note">Kaydettiğinde yapılandırma önce doğrulanır, yedeklenir ve yalnızca doğrulama başarılıysa Tor servisi yeniden başlatılır. Relay hiçbir zaman exit’e çevrilmez.</div>
+      <div class="form-message" id="form-message" role="status"></div>
+      <div class="dialog-actions">
+        <button class="button" id="cancel-settings" type="button">Vazgeç</button>
+        <button class="button primary" id="save-settings" type="submit">Kaydet ve uygula</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let latestData = null;
+
+    const formatBytes = (bytes) => {
+      if (!Number.isFinite(Number(bytes)) || Number(bytes) < 0) return "—";
+      const units = ["B", "KB", "MB", "GB", "TB"];
+      let value = Number(bytes), index = 0;
+      while (value >= 1000 && index < units.length - 1) { value /= 1000; index++; }
+      const digits = value >= 100 ? 0 : value >= 10 ? 1 : 2;
+      return value.toFixed(digits) + " " + units[index];
+    };
+    const formatRate = (bytes) => `${formatBytes(Math.max(0, Number(bytes) || 0))}/sn`;
+    const formatTemperature = (value) => Number.isFinite(Number(value)) ? `${Number(value).toFixed(0)}°C` : "Sensör yok";
+    const formatKWh = (value) => Number.isFinite(Number(value)) ? `${Number(value).toFixed(Number(value) < 1 ? 3 : 2)} kWh` : "—";
+    const formatUptime = (seconds) => {
+      const total = Math.max(0, Number(seconds) || 0);
+      const days = Math.floor(total / 86400);
+      const hours = Math.floor(total % 86400 / 3600);
+      return days > 0 ? `${days} gün ${hours} sa` : `${hours} sa ${Math.floor(total % 3600 / 60)} dk`;
+    };
+    const setMeter = (id, value) => {
+      $(id).style.width = `${Math.min(100, Math.max(0, Number(value) || 0))}%`;
+    };
+    const setState = (id, text, state) => {
+      const el = $(id);
+      el.textContent = text;
+      el.className = "check-state " + state;
+    };
+    const escapeHtml = (value) => String(value)
+      .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+
+    function render(data) {
+      latestData = data;
+      const hardware = data.hardware || {};
+      const hardwareOnline = hardware.available === true;
+      $("hardware-dot").className = "dot " + (hardwareOnline ? "online" : "offline");
+      $("hardware-status").textContent = hardwareOnline
+        ? `Canlı · ${Math.max(0, Math.round(Number(hardware.ageSeconds) || 0))} sn önce`
+        : "Sensör hizmeti bekleniyor";
+
+      if (hardwareOnline) {
+        const wallWatts = Math.max(0, Number(hardware.power?.wallEstimateWatts) || 0);
+        const lowWatts = Math.max(0, Number(hardware.power?.wallEstimateLowWatts) || 0);
+        const highWatts = Math.max(0, Number(hardware.power?.wallEstimateHighWatts) || 0);
+        $("power-watts").textContent = wallWatts.toFixed(0);
+        $("power-range").textContent = `Olası aralık ${lowWatts.toFixed(0)}–${highWatts.toFixed(0)} W`;
+        const cpuPowerSource = hardware.cpu?.powerSource === "sensor" ? "CPU sensörü" : "CPU tahmini";
+        const gpuPowerSource = hardware.gpu?.powerSource === "sensor" ? "GPU sensörü" : "GPU tahmini";
+        $("power-method").textContent = `${cpuPowerSource} + ${gpuPowerSource} + anakart/RAM taban tüketimi. Kesin priz ölçümü değildir.`;
+
+        const cpuLoad = Math.max(0, Number(hardware.cpu?.loadPercent) || 0);
+        const gpuLoad = Math.max(0, Number(hardware.gpu?.loadPercent) || 0);
+        const memoryLoad = Math.max(0, Number(hardware.memory?.loadPercent) || 0);
+        const diskLoad = Math.max(0, Number(hardware.disk?.activePercent) || 0);
+        $("cpu-load").textContent = `%${cpuLoad.toFixed(0)}`;
+        $("gpu-load").textContent = `%${gpuLoad.toFixed(0)}`;
+        $("memory-load").textContent = `%${memoryLoad.toFixed(0)}`;
+        $("disk-load").textContent = `%${diskLoad.toFixed(0)}`;
+        setMeter("cpu-meter", cpuLoad);
+        setMeter("gpu-meter", gpuLoad);
+        setMeter("memory-meter", memoryLoad);
+        setMeter("disk-meter", diskLoad);
+        $("cpu-temp").textContent = `Sıcaklık ${formatTemperature(hardware.cpu?.temperatureC)}`;
+        $("cpu-power").textContent = `${Number(hardware.cpu?.powerWatts || 0).toFixed(0)} W ${hardware.cpu?.powerSource === "sensor" ? "" : "tah."}`.trim();
+        $("gpu-temp").textContent = `Sıcaklık ${formatTemperature(hardware.gpu?.temperatureC)}`;
+        $("gpu-power").textContent = `${Number(hardware.gpu?.powerWatts || 0).toFixed(0)} W ${hardware.gpu?.powerSource === "sensor" ? "" : "tah."}`.trim();
+        $("memory-used").textContent = `${formatBytes(hardware.memory?.usedBytes)} kullanılıyor`;
+        $("memory-total").textContent = formatBytes(hardware.memory?.totalBytes);
+        $("disk-read").textContent = `↓ ${formatRate(hardware.disk?.readBytesPerSecond)}`;
+        $("disk-write").textContent = `↑ ${formatRate(hardware.disk?.writeBytesPerSecond)}`;
+        $("energy-today").textContent = formatKWh(hardware.power?.todayKWh);
+        $("energy-month").textContent = formatKWh(hardware.power?.monthKWh);
+        $("network-live").textContent = `↓ ${formatRate(hardware.network?.ethernet?.downloadBytesPerSecond)} · ↑ ${formatRate(hardware.network?.ethernet?.uploadBytesPerSecond)}`;
+        $("machine-uptime").textContent = formatUptime(hardware.machine?.uptimeSeconds);
+
+        const powerHistory = Array.isArray(hardware.history) && hardware.history.length
+          ? hardware.history.map(point => Math.max(0, Number(point.watts) || 0))
+          : [wallWatts];
+        const maxPower = Math.max(...powerHistory, 1);
+        $("power-chart").innerHTML = powerHistory.slice(-90).map(value =>
+          `<span class="power-bar" style="height:${Math.max(6, value / maxPower * 100)}%"></span>`
+        ).join("");
+
+        const processes = Array.isArray(hardware.processes) ? hardware.processes : [];
+        $("process-list").innerHTML = processes.length ? processes.map(process => `
+          <div class="process-row">
+            <span class="process-name">${escapeHtml(process.name || "Bilinmeyen")}</span>
+            <span class="process-cpu">%${Math.max(0, Number(process.cpuPercent) || 0).toFixed(1)} CPU</span>
+            <span class="process-memory">${formatBytes(process.memoryBytes)}</span>
+          </div>
+        `).join("") : '<div class="empty">İşlem örneği hazırlanıyor…</div>';
+
+        const volumes = Array.isArray(hardware.disk?.volumes) ? hardware.disk.volumes : [];
+        const totalDisk = volumes.reduce((sum, volume) => sum + Math.max(0, Number(volume.totalBytes) || 0), 0);
+        const freeDisk = volumes.reduce((sum, volume) => sum + Math.max(0, Number(volume.freeBytes) || 0), 0);
+        $("storage-summary").textContent = `${formatBytes(freeDisk)} boş`;
+        $("volume-list").innerHTML = volumes.length ? volumes.map(volume => {
+          const used = Math.min(100, Math.max(0, Number(volume.usedPercent) || 0));
+          const label = volume.label ? `${volume.name} · ${volume.label}` : volume.name;
+          return `<div class="volume-row">
+            <div class="volume-head"><strong>${escapeHtml(label)}</strong><span>%${used.toFixed(1)} · ${formatBytes(volume.freeBytes)} boş</span></div>
+            <div class="meter"><span style="width:${used}%"></span></div>
+          </div>`;
+        }).join("") : '<div class="empty">Disk bilgisi alınamadı.</div>';
+      } else {
+        $("power-watts").textContent = "—";
+        $("power-range").textContent = "Sensör hizmeti başlatılıyor";
+        $("power-method").textContent = "CPU, GPU, RAM, disk ve ağ telemetrisi henüz hazır değil.";
+        for (const id of ["cpu-load", "gpu-load", "memory-load", "disk-load"]) $(id).textContent = "—";
+        for (const id of ["cpu-meter", "gpu-meter", "memory-meter", "disk-meter"]) setMeter(id, 0);
+      }
+
+      const online = Boolean(data.service?.running && data.port?.listening && data.bootstrap >= 100);
+      const relayListed = data.consensus?.running === true;
+      const snowflakeRunning = data.snowflake?.running === true;
+      $("main-dot").className = "dot " + (online ? "online" : "offline");
+      $("main-label").textContent = relayListed ? "MIDDLE RELAY AKTİF" : snowflakeRunning ? "SANSÜR KARŞITI DESTEK AKTİF" : online ? "TOR ÇALIŞIYOR" : "İLGİ GEREKİYOR";
+      $("main-title").textContent = relayListed ? "Relay çevrimiçi" : snowflakeRunning ? "Snowflake çevrimiçi" : online ? "Consensus bekleniyor" : "Kontrol gerekli";
+      $("main-subtitle").textContent = relayListed
+        ? "Middle relay consensus içinde ve Tor trafiği aktarıyor."
+        : snowflakeRunning
+          ? "Middle relay CGNAT nedeniyle consensus dışında; Snowflake sansürlü kullanıcıların Tor’a bağlanmasına yardım ediyor."
+          : online
+            ? "Tor servisi hazır ancak henüz consensus içinde değil."
+            : "Aşağıdaki sağlık kontrollerinde sorun görünen satırı incele.";
+
+      $("service").textContent = data.service?.running ? "Çalışıyor" : "Kapalı";
+      $("service").className = "mini-value " + (data.service?.running ? "good" : "");
+      $("bootstrap").textContent = "%" + (Number(data.bootstrap) || 0);
+      $("bootstrap").className = "mini-value " + (data.bootstrap >= 100 ? "good" : "pending");
+      const reachText = data.reachability === "reachable" ? "IPv4 + IPv6" : data.reachability === "ipv6-only" ? "Yalnız IPv6" : data.reachability === "checking" ? "Test ediliyor" : "Doğrulanmadı";
+      $("reachability").textContent = reachText;
+      $("reachability").className = "mini-value " + (data.reachability === "reachable" ? "good" : "pending");
+      $("consensus").textContent = data.consensus?.running ? "Running" : data.consensus?.found ? "Bekliyor" : "Listede değil";
+      $("consensus").className = "mini-value " + (data.consensus?.running ? "good" : "pending");
+
+      const quota = Math.max(0, Number(data.traffic?.quota) || 0);
+      const total = Math.max(0, Number(data.traffic?.total) || 0);
+      const unlimited = data.traffic?.unlimited === true || quota === 0;
+      const percent = unlimited ? 0 : Math.min(100, Math.max(0, Number(data.traffic?.percent) || 0));
+      $("used").textContent = formatBytes(total);
+      $("read").textContent = formatBytes(Math.max(0, Number(data.traffic?.read) || 0));
+      $("write").textContent = formatBytes(Math.max(0, Number(data.traffic?.write) || 0));
+      $("quota-label").textContent = unlimited ? "Aylık sınır yok" : formatBytes(quota) + " toplam kota";
+      $("remaining").textContent = unlimited ? "Sınırsız" : formatBytes(Math.max(0, quota - total));
+      $("percent").textContent = unlimited ? "SINIRSIZ" : "%" + percent.toFixed(percent < 1 ? 3 : 1);
+      $("fill").style.width = unlimited ? "100%" : Math.max(percent, percent > 0 ? .25 : 0) + "%";
+      $("fill").style.opacity = unlimited ? ".28" : "1";
+      $("progress").setAttribute("aria-valuenow", String(percent));
+      $("traffic-period").textContent = data.traffic?.period ? `${data.traffic.period} dönemi` : "Bu ay";
+
+      const history = Array.isArray(data.traffic?.history) && data.traffic.history.length ? data.traffic.history : [0];
+      const max = Math.max(...history.map(value => Number(value) || 0), 1);
+      $("bars").innerHTML = history.slice(-48).map(value => `<span class="bar" style="height:${Math.max(3, (Number(value) || 0) / max * 100)}%"></span>`).join("");
+
+      setState("check-service", data.service?.running ? "Çalışıyor" : "Kapalı", data.service?.running ? "good" : "bad");
+      setState("check-bootstrap", data.bootstrap >= 100 ? "%100 bağlı" : "%" + (Number(data.bootstrap) || 0), data.bootstrap >= 100 ? "good" : "bad");
+      setState("check-port", data.port?.listening ? "Dinliyor" : "Kapalı", data.port?.listening ? "good" : "bad");
+      setState("check-exit", data.config?.nonExit ? "Kilitli" : "Kontrol et", data.config?.nonExit ? "good" : "bad");
+      setState("check-quota", unlimited ? "Sınır yok" : formatBytes(quota), "good");
+
+      $("nickname").textContent = data.config?.nickname || "relaywatch";
+      const orPort = Number(data.port?.number) || 9001;
+      $("or-port-label").textContent = `TCP ${orPort}`;
+      $("check-port-name").textContent = `${orPort} portu`;
+      const fingerprint = String(data.config?.fingerprint || "").replace(/\s/g, "").toUpperCase();
+      $("fingerprint").textContent = fingerprint
+        ? fingerprint.match(/.{1,4}/g).join(" ")
+        : "Henüz oluşmadı";
+      $("relay-search").href = fingerprint
+        ? `https://metrics.torproject.org/rs.html#details/${encodeURIComponent(fingerprint)}`
+        : "https://metrics.torproject.org/rs.html";
+      $("local-ip").textContent = data.localIp || "—";
+      $("tailscale-ip").textContent = data.tailscaleIp || "—";
+      $("contact-info").textContent = data.config?.contactInfo ? `${data.config.contactInfo} · açık` : "Boş";
+      $("rate").textContent = data.config?.rateMbps ? `~${data.config.rateMbps} Mbps` : "—";
+      $("burst").textContent = data.config?.burstMbps ? `~${data.config.burstMbps} Mbps` : "—";
+
+      const snowflakeTraffic = Math.max(0, Number(data.snowflake?.traffic?.total) || 0);
+      const snowflakeConnections = Math.max(0, Number(data.snowflake?.traffic?.connections) || 0);
+      const natLabels = { unrestricted: "Açık", restricted: "Kısıtlı", unknown: "Bilinmiyor", checking: "Test ediliyor" };
+      $("snowflake-status").textContent = snowflakeRunning ? "Çalışıyor" : "Kapalı";
+      $("snowflake-status").className = "mini-value " + (snowflakeRunning ? "good" : "");
+      $("snowflake-nat").textContent = natLabels[data.snowflake?.natType] || data.snowflake?.natType || "—";
+      $("snowflake-nat").className = "mini-value " + (data.snowflake?.natType === "unrestricted" ? "good" : "pending");
+      $("snowflake-connections").textContent = snowflakeConnections.toLocaleString("tr-TR");
+      $("snowflake-traffic").textContent = formatBytes(snowflakeTraffic);
+      $("support-total").textContent = formatBytes(Math.max(0, Number(data.support?.total) || total + snowflakeTraffic));
+      $("snowflake-label").textContent = snowflakeRunning ? `Aktif · kapasite ${data.snowflake?.capacity || 100}` : "Çalışmıyor";
+
+      const settingsAllowed = data.permissions?.settings === true;
+      $("settings").disabled = !settingsAllowed;
+      $("settings").title = settingsAllowed ? "Relay ayarlarını aç" : "Ayarlar yalnızca Windows bilgisayarındaki localhost panelinden değiştirilebilir";
+      $("access-note").textContent = settingsAllowed
+        ? "Windows’ta ayarlar açık · Tailscale’den salt okunur"
+        : "Tailscale bağlantısı · salt okunur";
+
+      const logs = Array.isArray(data.logs) ? data.logs : [];
+      $("logs").innerHTML = logs.length ? logs.map(line => {
+        const match = line.match(/^(\w+ \d+ )?(\d\d:\d\d:\d\d).*?\[(\w+)\] (.*)$/);
+        if (!match) return `<div class="logline"><span></span><span class="level">info</span><span>${escapeHtml(line)}</span></div>`;
+        return `<div class="logline"><span class="logtime">${escapeHtml(match[2])}</span><span class="level ${match[3] === "warn" ? "warn" : ""}">${escapeHtml(match[3])}</span><span>${escapeHtml(match[4])}</span></div>`;
+      }).join("") : '<div class="empty">Henüz günlük kaydı yok.</div>';
+      $("updated").textContent = "Son güncelleme " + new Date(data.updatedAt).toLocaleTimeString("tr-TR", {hour:"2-digit",minute:"2-digit",second:"2-digit"});
+      document.body.classList.remove("loading");
+    }
+
+    async function refresh() {
+      document.body.classList.add("loading");
+      try {
+        const response = await fetch("/api/status", { cache: "no-store" });
+        if (!response.ok) throw new Error("Durum alınamadı");
+        render(await response.json());
+      } catch {
+        $("main-dot").className = "dot offline";
+        $("main-label").textContent = "PANEL BAĞLANTISI YOK";
+        $("main-title").textContent = "Veri alınamadı";
+        $("main-subtitle").textContent = "Panel servisiyle bağlantı kurulamadı. Sayfayı yenilemeyi dene.";
+        document.body.classList.remove("loading");
+      }
+    }
+
+    function syncQuotaField() {
+      const disabled = $("unlimited-input").checked;
+      $("quota-input").disabled = disabled;
+      $("quota-field").style.opacity = disabled ? ".45" : "1";
+    }
+
+    function openSettings() {
+      if (!latestData?.permissions?.settings) return;
+      $("rate-input").value = latestData.config?.rateMbps || 300;
+      $("burst-input").value = latestData.config?.burstMbps || 700;
+      const quota = Math.max(0, Number(latestData.traffic?.quota) || 0);
+      $("unlimited-input").checked = latestData.traffic?.unlimited === true || quota === 0;
+      $("quota-input").value = quota > 0 ? Math.round(quota / 1_000_000_000) : 2000;
+      $("contact-input").value = latestData.config?.contactInfo || "";
+      $("form-message").textContent = "";
+      $("form-message").className = "form-message";
+      syncQuotaField();
+      $("settings-dialog").showModal();
+    }
+
+    async function saveSettings(event) {
+      event.preventDefault();
+      const save = $("save-settings");
+      const message = $("form-message");
+      save.disabled = true;
+      save.textContent = "Uygulanıyor…";
+      message.className = "form-message";
+      message.textContent = "Yapılandırma doğrulanıyor ve Tor servisi yeniden başlatılıyor.";
+      try {
+        const payload = {
+          rateMbps: Number($("rate-input").value),
+          burstMbps: Number($("burst-input").value),
+          unlimited: $("unlimited-input").checked,
+          quotaGB: Number($("quota-input").value),
+          contactInfo: $("contact-input").value.trim(),
+        };
+        const response = await fetch("/api/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Ayarlar uygulanamadı.");
+        render(result.status);
+        message.className = "form-message success";
+        message.textContent = "Ayarlar doğrulandı, kaydedildi ve Tor yeniden başlatıldı.";
+        setTimeout(() => $("settings-dialog").close(), 900);
+      } catch (error) {
+        message.className = "form-message error";
+        message.textContent = error.message || "Ayarlar uygulanamadı.";
+      } finally {
+        save.disabled = false;
+        save.textContent = "Kaydet ve uygula";
+      }
+    }
+
+    $("refresh").addEventListener("click", refresh);
+    $("settings").addEventListener("click", openSettings);
+    $("close-settings").addEventListener("click", () => $("settings-dialog").close());
+    $("cancel-settings").addEventListener("click", () => $("settings-dialog").close());
+    $("unlimited-input").addEventListener("change", syncQuotaField);
+    $("settings-form").addEventListener("submit", saveSettings);
+    $("settings-dialog").addEventListener("click", event => {
+      if (event.target === $("settings-dialog")) $("settings-dialog").close();
+    });
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>

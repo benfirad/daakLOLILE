@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">RelayWatch dashboard preview</title>
+  <desc id="desc">Synthetic preview of Tor relay, Snowflake and PC hardware monitoring cards.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop stop-color="#0c0b10"/>
+      <stop offset="1" stop-color="#17121c"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" x2="1">
+      <stop stop-color="#6f4a83"/>
+      <stop offset="1" stop-color="#b47bd2"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <g font-family="Inter,Segoe UI,Arial,sans-serif">
+    <circle cx="72" cy="61" r="23" fill="none" stroke="#a778bf" stroke-width="4"/>
+    <circle cx="72" cy="61" r="12" fill="none" stroke="#6f4a83" stroke-width="3"/>
+    <text x="111" y="56" fill="#9e94a5" font-size="14" letter-spacing="2">TOR RELAY &amp; PC MONITOR</text>
+    <text x="111" y="84" fill="#f6f2f8" font-size="27" font-weight="700">RelayWatch</text>
+    <text x="1060" y="68" fill="#56d693" font-size="15">● LIVE</text>
+
+    <g transform="translate(48 120)">
+      <rect width="760" height="220" rx="24" fill="#19161f" stroke="#302837"/>
+      <text x="32" y="38" fill="#9e94a5" font-size="13" letter-spacing="1.5">NON-EXIT MIDDLE RELAY</text>
+      <text x="32" y="91" fill="#f6f2f8" font-size="38" font-weight="650">Tor + Snowflake online</text>
+      <text x="32" y="128" fill="#aaa1af" font-size="17">Bootstrap 100% · ORPort reachable · Exit traffic rejected</text>
+      <rect x="32" y="164" width="680" height="10" rx="5" fill="#2b2530"/>
+      <rect x="32" y="164" width="542" height="10" rx="5" fill="url(#accent)"/>
+      <text x="32" y="204" fill="#d8d0dc" font-size="15">42.8 GB contributed this month</text>
+      <text x="614" y="204" fill="#c99be0" font-size="15">300 Mbps</text>
+    </g>
+
+    <g transform="translate(832 120)">
+      <rect width="400" height="220" rx="24" fill="#19161f" stroke="#302837"/>
+      <text x="28" y="38" fill="#9e94a5" font-size="13" letter-spacing="1.5">ESTIMATED WALL POWER</text>
+      <text x="28" y="100" fill="#f6f2f8" font-size="56" font-weight="700">104 W</text>
+      <text x="28" y="132" fill="#aaa1af" font-size="15">Estimated range 81–127 W</text>
+      <text x="28" y="178" fill="#56d693" font-size="17">GPU sensor 31 W · 54°C</text>
+    </g>
+
+    <g transform="translate(48 366)">
+      <rect width="1184" height="300" rx="24" fill="#15131a" stroke="#302837"/>
+      <text x="30" y="42" fill="#9e94a5" font-size="13" letter-spacing="1.5">WINDOWS HARDWARE</text>
+      <g transform="translate(30 72)">
+        <g>
+          <text y="24" fill="#f6f2f8" font-size="20">CPU</text>
+          <text x="170" y="24" fill="#c9c0cf" font-size="18">24%</text>
+          <rect y="42" width="220" height="8" rx="4" fill="#2b2530"/>
+          <rect y="42" width="53" height="8" rx="4" fill="#8e5ca6"/>
+        </g>
+        <g transform="translate(280)">
+          <text y="24" fill="#f6f2f8" font-size="20">GPU</text>
+          <text x="170" y="24" fill="#c9c0cf" font-size="18">18%</text>
+          <rect y="42" width="220" height="8" rx="4" fill="#2b2530"/>
+          <rect y="42" width="40" height="8" rx="4" fill="#8e5ca6"/>
+        </g>
+        <g transform="translate(560)">
+          <text y="24" fill="#f6f2f8" font-size="20">RAM</text>
+          <text x="170" y="24" fill="#c9c0cf" font-size="18">61%</text>
+          <rect y="42" width="220" height="8" rx="4" fill="#2b2530"/>
+          <rect y="42" width="134" height="8" rx="4" fill="#8e5ca6"/>
+        </g>
+        <g transform="translate(840)">
+          <text y="24" fill="#f6f2f8" font-size="20">DISK</text>
+          <text x="170" y="24" fill="#c9c0cf" font-size="18">7%</text>
+          <rect y="42" width="220" height="8" rx="4" fill="#2b2530"/>
+          <rect y="42" width="16" height="8" rx="4" fill="#8e5ca6"/>
+        </g>
+      </g>
+      <path d="M30 192 C130 165 195 223 285 188 S445 137 530 187 S695 229 780 175 S945 142 1060 194 S1122 206 1150 179" fill="none" stroke="url(#accent)" stroke-width="5"/>
+      <line x1="30" y1="238" x2="1154" y2="238" stroke="#2d2831"/>
+      <text x="30" y="275" fill="#aaa1af" font-size="15">Ethernet ↓ 18.4 MB/s  ↑ 4.2 MB/s</text>
+      <text x="895" y="275" fill="#aaa1af" font-size="15">Today 1.248 kWh</text>
+    </g>
+  </g>
+</svg>
