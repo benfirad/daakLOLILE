@@ -431,6 +431,58 @@ async function setPowerMode(input) {
   return powerStatus();
 }
 
+function friendlyTorLogs(rawLog) {
+  const deduplicated = [];
+  const seen = new Set();
+  const lines = rawLog.split(/\r?\n/).filter(Boolean);
+
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    let line = lines[index];
+    if (/New control connection opened from 127\.0\.0\.1\./i.test(line)) continue;
+    if (/Got authentication cookie with wrong length \(0\)/i.test(line)) continue;
+    if (/No circuits are opened\. Relaxed timeout for circuit .*Testing circuit/i.test(line)) continue;
+
+    let key = "";
+    if (/not managed to confirm reachability for its ORPort/i.test(line)) {
+      key = "orport-unreachable";
+      line = line.replace(
+        /Your server has not managed to confirm reachability[\s\S]*$/i,
+        "IPv4 ORPort henüz dışarıdan doğrulanamadı; yönlendirici ve güvenlik duvarı kontrolü gerekiyor."
+      );
+    } else if (/Now checking whether IPv4 ORPort/i.test(line)) {
+      key = "ipv4-checking";
+      line = line.replace(
+        /Now checking whether IPv4 ORPort[\s\S]*$/i,
+        "IPv4 ORPort dış erişim testi sürüyor; bu kontrol 20 dakikaya kadar sürebilir."
+      );
+    } else if (/Now checking whether IPv6 ORPort/i.test(line)) {
+      key = "ipv6-checking";
+      line = line.replace(
+        /Now checking whether IPv6 ORPort[\s\S]*$/i,
+        "IPv6 ORPort dış erişim testi sürüyor."
+      );
+    } else if (/Self-testing indicates your (?:IPv6 )?ORPort \[[0-9a-f:]+\]:\d+ is reachable/i.test(line)) {
+      key = "ipv6-reachable";
+      line = line.replace(
+        /Self-testing indicates[\s\S]*$/i,
+        "IPv6 ORPort dışarıdan erişilebilir. Bağlantı doğrulandı."
+      );
+    } else if (/Self-testing indicates your (?:IPv4 )?ORPort (?!\[)[^\s:]+:\d+ is reachable/i.test(line)) {
+      key = "ipv4-reachable";
+      line = line.replace(
+        /Self-testing indicates[\s\S]*$/i,
+        "IPv4 ORPort dışarıdan erişilebilir. Bağlantı doğrulandı."
+      );
+    }
+
+    if (key && seen.has(key)) continue;
+    if (key) seen.add(key);
+    deduplicated.push(line);
+  }
+
+  return deduplicated.reverse();
+}
+
 async function maintainMemory() {
   await execFileAsync("powershell.exe", [
     "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
@@ -463,11 +515,7 @@ async function buildStatus(settingsAllowed = false, powerAllowed = false) {
   const fallbackWrite = writeHistory.reduce((a, b) => a + b, 0);
   const traffic = await monthlyTraffic(fallbackRead, fallbackWrite);
   const quota = parseByteSize(configValue(config, "AccountingMax"));
-  const logLines = log
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .filter(line => !/New control connection opened from 127\.0\.0\.1\./i.test(line))
-    .filter(line => !/Got authentication cookie with wrong length \(0\)/i.test(line));
+  const logLines = friendlyTorLogs(log);
   const bootstrapMatches = [...log.matchAll(/Bootstrapped\s+(\d+)%/g)].map(match => Number(match[1]));
   const bootstrap = bootstrapMatches.at(-1) || 0;
   const ipv4Reachable = /Self-testing indicates your (?:IPv4 )?ORPort (?!\[)[^\r\n]* is reachable from the outside/i.test(log);

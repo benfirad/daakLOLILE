@@ -842,7 +842,33 @@
           ? "Tailscale bağlantısı · güç kontrolü açık · Tor ayarları salt okunur"
           : "Salt okunur bağlantı";
 
-      const logs = Array.isArray(data.logs) ? data.logs : [];
+      const seenLogKinds = new Set();
+      const logs = (Array.isArray(data.logs) ? data.logs : []).slice().reverse().filter(line => {
+        if (/No circuits are opened\. Relaxed timeout for circuit .*Testing circuit/i.test(line)) return false;
+        const kind = /not managed to confirm reachability for its ORPort/i.test(line)
+          ? "orport-unreachable"
+          : /Now checking whether IPv4 ORPort/i.test(line)
+            ? "ipv4-checking"
+            : /Now checking whether IPv6 ORPort/i.test(line)
+              ? "ipv6-checking"
+              : "";
+        if (kind && seenLogKinds.has(kind)) return false;
+        if (kind) seenLogKinds.add(kind);
+        return true;
+      }).reverse().map(line => line
+        .replace(
+          /Your server has not managed to confirm reachability[\s\S]*$/i,
+          "IPv4 ORPort CGNAT nedeniyle dışarıdan doğrulanamadı; middle relay descriptor yayımlayamıyor."
+        )
+        .replace(
+          /Now checking whether IPv4 ORPort[\s\S]*$/i,
+          "IPv4 ORPort dış erişim testi sürüyor; bu kontrol 20 dakikaya kadar sürebilir."
+        )
+        .replace(
+          /Now checking whether IPv6 ORPort[\s\S]*$/i,
+          "IPv6 ORPort dış erişim testi sürüyor."
+        )
+      );
       $("logs").innerHTML = logs.length ? logs.map(line => {
         const match = line.match(/^(\w+ \d+ )?(\d\d:\d\d:\d\d).*?\[(\w+)\] (.*)$/);
         if (!match) return `<div class="logline"><span></span><span class="level">info</span><span>${escapeHtml(line)}</span></div>`;

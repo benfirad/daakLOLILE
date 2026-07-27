@@ -53,7 +53,7 @@ finally {
 }
 
 $serverSource = Get-Content -LiteralPath (Join-Path $repoRoot 'windows\dashboard\server.mjs') -Raw
-foreach ($required in @('/api/power','/api/memory/maintain','isTailscale','power-manager.ps1','memory-manager.ps1')) {
+foreach ($required in @('/api/power','/api/memory/maintain','isTailscale','power-manager.ps1','memory-manager.ps1','friendlyTorLogs','No circuits are opened')) {
     if ($serverSource -notmatch [regex]::Escape($required)) {
         throw "Missing protected power-control feature: $required"
     }
