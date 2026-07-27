@@ -16,15 +16,16 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
 $sourceRoot = Split-Path -Parent $PSScriptRoot
-$installRoot = 'C:\ProgramData\LOLILE'
+$installRoot = 'C:\ProgramData\daakLOLILE'
 $dashboardRoot = Join-Path $installRoot 'dashboard'
 $publicRoot = Join-Path $dashboardRoot 'public'
 $libraryRoot = Join-Path $installRoot 'lib'
 $dataRoot = Join-Path $installRoot 'data'
-$hardwareTask = 'LOLILE Hardware Monitor'
-$dashboardTask = 'LOLILE Dashboard'
-$powerTask = 'LOLILE Power Manager'
-$firewallRule = 'LOLILE Dashboard (Tailscale only)'
+$hardwareTask = 'daakLOLILE Hardware Monitor'
+$dashboardTask = 'daakLOLILE Dashboard'
+$powerTask = 'daakLOLILE Power Manager'
+$memoryTask = 'daakLOLILE Memory Maintenance'
+$firewallRule = 'daakLOLILE Dashboard (Tailscale only)'
 $lhmVersion = '0.9.6'
 $lhmUrl = 'https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/download/v0.9.6/LibreHardwareMonitor.zip'
 $lhmSha256 = '086D9F1B5A99E643EDC2CFAAAC16051685B551E4C5AC0B32A57C58C0E529C001'
@@ -61,6 +62,7 @@ if ($nodeMajor -lt 22) {
 foreach ($required in @(
     (Join-Path $sourceRoot 'windows\hardware-monitor.ps1'),
     (Join-Path $sourceRoot 'windows\power-manager.ps1'),
+    (Join-Path $sourceRoot 'windows\memory-manager.ps1'),
     (Join-Path $sourceRoot 'windows\widget.ps1'),
     (Join-Path $sourceRoot 'windows\dashboard\server.mjs'),
     (Join-Path $sourceRoot 'windows\dashboard\public\dashboard.html')
@@ -73,8 +75,10 @@ foreach ($required in @(
 New-Item -ItemType Directory -Path $installRoot,$dashboardRoot,$publicRoot,$libraryRoot,$dataRoot -Force | Out-Null
 
 foreach ($taskName in @(
-    $hardwareTask,$dashboardTask,$powerTask,
-    'RelayWatch Hardware Monitor','RelayWatch Dashboard','RelayWatch Power Manager'
+    $hardwareTask,$dashboardTask,$powerTask,$memoryTask,
+    'RelayWatch Hardware Monitor','RelayWatch Dashboard','RelayWatch Power Manager',
+    'LOLILE Hardware Monitor','LOLILE Dashboard','LOLILE Power Manager',
+    'LOLILE Memory Maintenance'
 )) {
     Stop-RelayWatchTask -Name $taskName
 }
@@ -89,12 +93,18 @@ Get-NetTCPConnection -LocalPort $DashboardPort -State Listen -ErrorAction Silent
 Get-CimInstance Win32_Process |
     Where-Object {
         $_.Name -in @('powershell.exe','node.exe') -and
-        $_.CommandLine -match '(?i)C:\\ProgramData\\(?:RelayWatch|LOLILE|TorRelayDashboard)'
+        $_.CommandLine -match '(?i)C:\\ProgramData\\(?:RelayWatch|LOLILE|daakLOLILE|TorRelayDashboard)'
     } |
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 Start-Sleep -Milliseconds 1200
 
 $libraryDll = Join-Path $libraryRoot 'LibreHardwareMonitorLib.dll'
+if (-not (Test-Path -LiteralPath $libraryDll)) {
+    $legacyLibrary = 'C:\ProgramData\LOLILE\lib'
+    if (Test-Path -LiteralPath (Join-Path $legacyLibrary 'LibreHardwareMonitorLib.dll')) {
+        Copy-Item -Path (Join-Path $legacyLibrary '*') -Destination $libraryRoot -Recurse -Force
+    }
+}
 if (-not (Test-Path -LiteralPath $libraryDll)) {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     $temporaryRoot = Join-Path ([IO.Path]::GetTempPath()) ('relaywatch-' + [guid]::NewGuid().ToString('N'))
@@ -128,6 +138,9 @@ Write-Utf8Bom `
 Write-Utf8Bom `
     -Source (Join-Path $sourceRoot 'windows\power-manager.ps1') `
     -Destination (Join-Path $installRoot 'power-manager.ps1')
+Write-Utf8Bom `
+    -Source (Join-Path $sourceRoot 'windows\memory-manager.ps1') `
+    -Destination (Join-Path $installRoot 'memory-manager.ps1')
 Copy-Item `
     -LiteralPath (Join-Path $sourceRoot 'windows\dashboard\server.mjs') `
     -Destination (Join-Path $dashboardRoot 'server.mjs') `
@@ -141,6 +154,7 @@ Write-Utf8Bom `
     -Destination (Join-Path $installRoot 'widget.ps1')
 
 foreach ($legacyDataRoot in @(
+    'C:\ProgramData\LOLILE\data',
     'C:\ProgramData\RelayWatch\data',
     'C:\ProgramData\TorRelayDashboard\data'
 )) {
@@ -155,6 +169,14 @@ foreach ($legacyDataRoot in @(
     }
 }
 
+foreach ($legacyFile in @('power-config.json','energy.json')) {
+    $source = Join-Path 'C:\ProgramData\LOLILE' $legacyFile
+    $destination = Join-Path $installRoot $legacyFile
+    if ((Test-Path -LiteralPath $source) -and -not (Test-Path -LiteralPath $destination)) {
+        Copy-Item -LiteralPath $source -Destination $destination
+    }
+}
+
 $escapedTorRoot = $TorRoot.Replace("'", "''")
 $escapedNode = $node.Source.Replace("'", "''")
 $dashboardLauncher = @"
@@ -163,8 +185,10 @@ $dashboardLauncher = @"
 `$env:RELAYWATCH_PUBLIC_ROOT = '$publicRoot'
 `$env:RELAYWATCH_HARDWARE_STATUS = '$installRoot\hardware-status.json'
 `$env:RELAYWATCH_PORT = '$DashboardPort'
-`$env:LOLILE_POWER_MANAGER = '$installRoot\power-manager.ps1'
-`$env:LOLILE_POWER_STATUS = '$installRoot\power-status.json'
+`$env:daakLOLILE_POWER_MANAGER = '$installRoot\power-manager.ps1'
+`$env:daakLOLILE_POWER_STATUS = '$installRoot\power-status.json'
+`$env:daakLOLILE_MEMORY_MANAGER = '$installRoot\memory-manager.ps1'
+`$env:daakLOLILE_MEMORY_STATUS = '$installRoot\memory-status.json'
 `$env:TOR_ROOT = '$escapedTorRoot'
 `$env:TOR_OR_PORT = '$TorOrPort'
 `$env:TOR_SERVICE_NAME = '$TorServiceName'
@@ -195,12 +219,17 @@ $powerAction = New-ScheduledTaskAction `
     -Execute $powerShell `
     -Argument "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$installRoot\power-manager.ps1`" -Action Tick -InstallRoot `"$installRoot`"" `
     -WorkingDirectory $installRoot
+$memoryAction = New-ScheduledTaskAction `
+    -Execute $powerShell `
+    -Argument "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$installRoot\memory-manager.ps1`" -Action Maintain -InstallRoot `"$installRoot`"" `
+    -WorkingDirectory $installRoot
 $startup = New-ScheduledTaskTrigger -AtStartup
 $watchdog = New-ScheduledTaskTrigger `
     -Once `
     -At (Get-Date).AddMinutes(1) `
     -RepetitionInterval (New-TimeSpan -Minutes 5) `
     -RepetitionDuration (New-TimeSpan -Days 3650)
+$dailyMemoryMaintenance = New-ScheduledTaskTrigger -Daily -At '04:30'
 
 Register-ScheduledTask `
     -TaskName $hardwareTask `
@@ -208,7 +237,7 @@ Register-ScheduledTask `
     -Trigger @($startup,$watchdog) `
     -Principal $principal `
     -Settings $settings `
-    -Description "LOLILE hardware telemetry using LibreHardwareMonitor $lhmVersion." `
+    -Description "daakLOLILE hardware telemetry using LibreHardwareMonitor $lhmVersion." `
     -Force | Out-Null
 Register-ScheduledTask `
     -TaskName $dashboardTask `
@@ -216,7 +245,7 @@ Register-ScheduledTask `
     -Trigger @($startup,$watchdog) `
     -Principal $principal `
     -Settings $settings `
-    -Description 'LOLILE Tor relay, Snowflake, PC monitor and private power-control dashboard.' `
+    -Description 'daakLOLILE Tor relay, Snowflake, PC monitor and private power-control dashboard.' `
     -Force | Out-Null
 Register-ScheduledTask `
     -TaskName $powerTask `
@@ -224,11 +253,20 @@ Register-ScheduledTask `
     -Trigger @($startup,$watchdog) `
     -Principal $principal `
     -Settings $settings `
-    -Description 'LOLILE automatic night power mode. Sleep remains disabled and remote services stay online.' `
+    -Description 'daakLOLILE automatic night power mode. Sleep remains disabled and remote services stay online.' `
+    -Force | Out-Null
+Register-ScheduledTask `
+    -TaskName $memoryTask `
+    -Action $memoryAction `
+    -Trigger $dailyMemoryMaintenance `
+    -Principal $principal `
+    -Settings $settings `
+    -Description 'daakLOLILE daily safe memory maintenance. Critical networking and sharing services are excluded.' `
     -Force | Out-Null
 
 foreach ($oldRule in @(
     $firewallRule,
+    'LOLILE Dashboard (Tailscale only)',
     'RelayWatch Dashboard (Tailscale only)',
     'benfirad Tor Dashboard (Tailscale)',
     'lolile - Tor support dashboard (Tailscale only)'
@@ -249,6 +287,23 @@ New-NetFirewallRule `
     -File (Join-Path $installRoot 'power-manager.ps1') `
     -Action Install `
     -InstallRoot $installRoot | Out-Null
+& $powerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+    -File (Join-Path $installRoot 'memory-manager.ps1') `
+    -Action Maintain `
+    -InstallRoot $installRoot | Out-Null
+
+$icacls = Join-Path $env:SystemRoot 'System32\icacls.exe'
+& $icacls $installRoot `
+    '/inheritance:r' `
+    '/grant:r' `
+    '*S-1-5-18:(OI)(CI)F' `
+    '*S-1-5-32-544:(OI)(CI)F' `
+    '*S-1-5-32-545:(OI)(CI)RX' `
+    '/T' `
+    '/C' | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    throw "Could not secure the daakLOLILE installation directory."
+}
 
 Start-ScheduledTask -TaskName $hardwareTask
 Start-ScheduledTask -TaskName $dashboardTask
@@ -260,14 +315,14 @@ if ($InstallWidget) {
 CreateObject("Wscript.Shell").Run "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""$installRoot\widget.ps1""", 0, False
 "@ | Set-Content -LiteralPath $launcher -Encoding ASCII
     $startupFolder = [Environment]::GetFolderPath('Startup')
-    foreach ($legacyShortcut in @('RelayWatch Widget.lnk','benfirad Tor Paneli.lnk')) {
+    foreach ($legacyShortcut in @('LOLILE Widget.lnk','RelayWatch Widget.lnk','benfirad Tor Paneli.lnk')) {
         Remove-Item -LiteralPath (Join-Path $startupFolder $legacyShortcut) -Force -ErrorAction SilentlyContinue
     }
-    $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $startupFolder 'LOLILE Widget.lnk'))
+    $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $startupFolder 'daakLOLILE Widget.lnk'))
     $shortcut.TargetPath = Join-Path $env:SystemRoot 'System32\wscript.exe'
     $shortcut.Arguments = "`"$launcher`""
     $shortcut.WorkingDirectory = $installRoot
-    $shortcut.Description = 'LOLILE desktop widget'
+    $shortcut.Description = 'daakLOLILE desktop widget'
     $shortcut.Save()
     Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\wscript.exe') -ArgumentList "`"$launcher`""
 }
@@ -283,11 +338,12 @@ do {
 } while (($null -eq $status -or $status.hardware.available -ne $true) -and (Get-Date) -lt $deadline)
 
 if ($null -eq $status -or $status.hardware.available -ne $true) {
-    throw "LOLILE tasks were installed, but the local API did not become healthy on port $DashboardPort."
+    throw "daakLOLILE tasks were installed, but the local API did not become healthy on port $DashboardPort."
 }
 
 Write-Host ''
-Write-Host "LOLILE is ready: http://127.0.0.1:$DashboardPort" -ForegroundColor Green
+Write-Host "daakLOLILE is ready: http://127.0.0.1:$DashboardPort" -ForegroundColor Green
 Write-Host 'Remote dashboard and power control are limited to Tailscale address ranges.'
 Write-Host 'Automatic night mode defaults to 00:00-08:00. Sleep, Tor, Tailscale, Chrome Remote Desktop and SMB remain enabled.'
+Write-Host 'Safe memory maintenance runs daily at 04:30 and touches only daakLOLILE helper processes when memory pressure is real.'
 Write-Host 'The total wall-power value is an estimate unless a supported external meter is integrated.'

@@ -1,6 +1,6 @@
-# LOLILE — Türkçe
+# daakLOLILE — Türkçe
 
-LOLILE; Windows üzerinde çalışan Tor middle/non-exit relay, Snowflake, bilgisayar donanımı ve güvenli güç modlarını tek panelden yönetir. Küçük bir Windows masaüstü bileşeni ve Tailscale üzerinden çalışan macOS üst menü uygulaması içerir.
+daakLOLILE; Windows üzerinde çalışan Tor middle/non-exit relay, Snowflake, bilgisayar donanımı ve güvenli güç modlarını tek panelden yönetir. Küçük bir Windows masaüstü bileşeni ve Tailscale üzerinden çalışan macOS üst menü uygulaması içerir.
 
 ## Özellikler
 
@@ -18,7 +18,7 @@ LOLILE; Windows üzerinde çalışan Tor middle/non-exit relay, Snowflake, bilgi
 
 ## Güvenlik
 
-LOLILE bir exit relay kurmaz. Tor yapılandırmanızda aşağıdaki satırların bulunması önerilir:
+daakLOLILE bir exit relay kurmaz. Tor yapılandırmanızda aşağıdaki satırların bulunması önerilir:
 
 ```text
 SocksPort 0
@@ -69,9 +69,15 @@ Uygulama açıldığında Windows bilgisayarının Tailscale IP'sini yazın. Mac
 
 Her modda Windows uyku, hibernasyon ve hibrit uyku kapalıdır. Tor, Snowflake, Tailscale, Chrome Remote Desktop, RDP, SMB disk paylaşımı ve Syncthing ayarlarına dokunulmaz. Güç yöneticisi kullanıcı girişi olmadan `SYSTEM` olarak çalışır.
 
+## Güvenli RAM bakımı
+
+Windows boş RAM'i hız kazandıran bir önbellek olarak kullanır; bu nedenle daakLOLILE her gün RAM'i körlemesine boşaltmaz. Kullanıcı girişi gerektirmeyen görev her gün `04:30`'da kontrol yapar. Otomatik müdahale ancak kullanım en az `%85` ve boş fiziksel bellek en fazla `2 GB` olduğunda gerçekleşir.
+
+Bakım gerektiğinde yalnızca daakLOLILE paneli ve donanım izleyicisinin yardımcı süreçleri küçültülür. Tor, Snowflake, Tailscale, Chrome Remote Desktop, RDP, SMB, Syncthing, diğer uygulamalar ve Windows önbelleği hedeflenmez. Yerel panelden veya Tailscale üzerinden elle güvenli bakım da başlatılabilir.
+
 ## Güç tüketimi
 
-Güç kaynağındaki 650 W gibi değerler anlık tüketim değil, azami kapasitedir. LOLILE erişebildiği bileşen sensörlerini kullanır; eksik CPU/sistem/PSU değerlerini tahmin eder ve toplamı açıkça tahmini olarak işaretler.
+Güç kaynağındaki 650 W gibi değerler anlık tüketim değil, azami kapasitedir. daakLOLILE erişebildiği bileşen sensörlerini kullanır; eksik CPU/sistem/PSU değerlerini tahmin eder ve toplamı açıkça tahmini olarak işaretler.
 
 Gerçek priz tüketimi için yerel API sunan güvenilir bir akıllı priz veya harici güç ölçer gerekir.
 

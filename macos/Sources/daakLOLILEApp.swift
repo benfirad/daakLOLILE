@@ -5,6 +5,7 @@ import Foundation
 private struct RelayStatus: Decodable {
     struct Permissions: Decodable {
         let power: Bool?
+        let memory: Bool?
     }
 
     struct Service: Decodable {
@@ -61,6 +62,21 @@ private struct RelayStatus: Decodable {
         let effectiveMode: String
         let nightStart: String
         let nightEnd: String
+    }
+
+    struct MemoryMaintenance: Decodable {
+        struct Schedule: Decodable {
+            let dailyAt: String
+            let runsWithoutLogin: Bool
+        }
+
+        let available: Bool
+        let decision: String
+        let message: String
+        let pressureDetected: Bool
+        let updatedAt: String?
+        let reclaimedBytes: Double?
+        let schedule: Schedule
     }
 
     struct Hardware: Decodable {
@@ -123,6 +139,7 @@ private struct RelayStatus: Decodable {
     let support: Support?
     let hardware: Hardware?
     let power: PowerMode?
+    let memoryMaintenance: MemoryMaintenance?
 }
 
 @MainActor
@@ -131,13 +148,17 @@ private final class RelayMonitor: ObservableObject {
     @Published private(set) var lastError: String?
     @Published private(set) var isRefreshing = false
     @Published private(set) var isSettingPower = false
+    @Published private(set) var isMaintainingMemory = false
     @Published var host: String
 
     private var timer: Timer?
-    private let hostKey = "lolileHost"
+    private let hostKey = "daaklolileHost"
+    private let legacyHostKey = "lolileHost"
 
     init() {
-        host = UserDefaults.standard.string(forKey: hostKey) ?? ""
+        host = UserDefaults.standard.string(forKey: hostKey)
+            ?? UserDefaults.standard.string(forKey: legacyHostKey)
+            ?? ""
         timer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 await self?.refresh()
@@ -160,12 +181,12 @@ private final class RelayMonitor: ObservableObject {
     }
 
     var menuTitle: String {
-        guard let status else { return "LOLILE —" }
+        guard let status else { return "daakLOLILE —" }
         if status.hardware?.available == true,
            let watts = status.hardware?.power?.wallEstimateWatts {
-            return "LOLILE \(String(format: "%.0f W", watts))"
+            return "daakLOLILE \(String(format: "%.0f W", watts))"
         }
-        return "LOLILE \(Self.formatGigabytes(status.support?.total ?? status.traffic.total))"
+        return "daakLOLILE \(Self.formatGigabytes(status.support?.total ?? status.traffic.total))"
     }
 
     var baseURL: URL? {
@@ -194,7 +215,7 @@ private final class RelayMonitor: ObservableObject {
             var request = URLRequest(url: url)
             request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
             request.timeoutInterval = 8
-            request.setValue("LOLILEMenu/2.0", forHTTPHeaderField: "User-Agent")
+            request.setValue("daakLOLILEMenu/2.1", forHTTPHeaderField: "User-Agent")
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 throw MonitorError.badResponse
@@ -222,7 +243,7 @@ private final class RelayMonitor: ObservableObject {
             request.httpMethod = "POST"
             request.timeoutInterval = 12
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("LOLILEMenu/2.0", forHTTPHeaderField: "User-Agent")
+            request.setValue("daakLOLILEMenu/2.1", forHTTPHeaderField: "User-Agent")
             request.httpBody = try JSONSerialization.data(withJSONObject: ["mode": mode])
             let (_, response) = try await URLSession.shared.data(for: request)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
@@ -231,6 +252,28 @@ private final class RelayMonitor: ObservableObject {
             await refresh()
         } catch {
             lastError = "Güç modu değiştirilemedi. Tailscale bağlantısını kontrol et."
+        }
+    }
+
+    func maintainMemory() async {
+        guard let baseURL, status?.permissions?.memory == true else { return }
+        isMaintainingMemory = true
+        defer { isMaintainingMemory = false }
+        do {
+            let url = baseURL.appendingPathComponent("api/memory/maintain")
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 20
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("daakLOLILEMenu/2.1", forHTTPHeaderField: "User-Agent")
+            request.httpBody = Data("{}".utf8)
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                throw MonitorError.badResponse
+            }
+            await refresh()
+        } catch {
+            lastError = "Bellek bakımı başlatılamadı. Tailscale bağlantısını kontrol et."
         }
     }
 
@@ -338,7 +381,7 @@ private struct RelayMenuView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("LOLILE")
+                    Text("daakLOLILE")
                         .font(.headline)
                     Text("Windows sistem monitörü")
                         .font(.caption)
@@ -419,6 +462,34 @@ private struct RelayMenuView: View {
                         }
 
                         Text("Uyku kapalıdır; Tor, Tailscale, uzaktan masaüstü ve disk paylaşımı çalışmaya devam eder.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Divider()
+                }
+
+                if let memory = status.memoryMaintenance, memory.available {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Güvenli RAM bakımı")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(memory.pressureDetected ? "Bellek baskısı izlendi" : "RAM dengeli")
+                                    .font(.headline)
+                            }
+                            Spacer()
+                            Button(monitor.isMaintainingMemory ? "Bakım yapılıyor…" : "Şimdi bakım") {
+                                Task { await monitor.maintainMemory() }
+                            }
+                            .disabled(
+                                monitor.isMaintainingMemory ||
+                                status.permissions?.memory != true
+                            )
+                        }
+
+                        Text("Her gün \(memory.schedule.dailyAt) · Windows önbelleği, Tor ve uzaktan bağlantılar korunur.")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -542,7 +613,7 @@ private struct RelayMenuView: View {
 }
 
 @main
-struct LOLILEApp: App {
+struct daakLOLILEApp: App {
     @StateObject private var monitor = RelayMonitor()
 
     var body: some Scene {

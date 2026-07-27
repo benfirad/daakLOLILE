@@ -1,4 +1,4 @@
-# LOLILE
+# daakLOLILE
 
 **A privacy-first Windows Tor relay dashboard, PC hardware monitor, safe power-mode controller, desktop widget, and macOS menu bar companion.**
 
@@ -9,11 +9,11 @@
 [![Tor non-exit](https://img.shields.io/badge/Tor-middle%20relay-7D4698?logo=torproject)](https://community.torproject.org/relay/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-LOLILE combines live Tor middle-relay traffic, Snowflake proxy statistics, CPU/GPU/RAM/disk/network telemetry, estimated power use, safe automatic night power modes, a small Windows desktop widget, and a macOS menu bar app. Remote access and power control are designed for a private [Tailscale](https://tailscale.com/) network.
+daakLOLILE combines live Tor middle-relay traffic, Snowflake proxy statistics, CPU/GPU/RAM/disk/network telemetry, estimated power use, safe automatic night power modes, a small Windows desktop widget, and a macOS menu bar app. Remote access and power control are designed for a private [Tailscale](https://tailscale.com/) network.
 
-![LOLILE dashboard preview](docs/lolile-dashboard.svg)
+![daakLOLILE dashboard preview](docs/daaklolile-dashboard.svg)
 
-## Why LOLILE?
+## Why daakLOLILE?
 
 - Monitor a Windows Tor **middle/non-exit relay** without exposing an admin panel to the public internet.
 - See relay bandwidth, bootstrap, reachability, consensus status, Snowflake connections, and total contributed traffic.
@@ -25,7 +25,7 @@ LOLILE combines live Tor middle-relay traffic, Snowflake proxy statistics, CPU/G
 
 ## Security model
 
-LOLILE does not turn a relay into an exit node. Your Tor configuration should contain:
+daakLOLILE does not turn a relay into an exit node. Your Tor configuration should contain:
 
 ```text
 SocksPort 0
@@ -46,7 +46,7 @@ The API deliberately allows Tor settings changes only from loopback (`127.0.0.1`
 - Optional: Tailscale on Windows and macOS
 - Optional: macOS 13 or newer with Apple command-line developer tools
 
-LOLILE downloads the pinned official [LibreHardwareMonitor 0.9.6](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/tag/v0.9.6) archive and verifies its SHA-256 checksum during Windows installation.
+daakLOLILE downloads the pinned official [LibreHardwareMonitor 0.9.6](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/tag/v0.9.6) archive and verifies its SHA-256 checksum during Windows installation.
 
 ## Windows quick start
 
@@ -80,28 +80,34 @@ http://100.x.y.z:17657
 1. Install and connect Tailscale on both devices.
 2. Copy the `macos` folder to the Mac.
 3. In Terminal, run `zsh build.command` from that folder.
-4. Enter the Windows PC's Tailscale IP in LOLILE and choose **Connect**.
+4. Enter the Windows PC's Tailscale IP in daakLOLILE and choose **Connect**.
 5. Switch between automatic, night-saving, balanced, and high-performance modes from the menu bar.
-6. Optionally move `build/LOLILE.app` to Applications and add it under **System Settings → General → Login Items**.
+6. Optionally move `build/daakLOLILE.app` to Applications and add it under **System Settings → General → Login Items**.
 
 The Mac app reads monitoring data and can call only the constrained power-mode endpoint. It does not run a relay or proxy on the Mac and cannot change Tor settings.
 
 ## Safe power modes
 
-LOLILE creates three dedicated Windows power schemes and an automatic controller:
+daakLOLILE creates three dedicated Windows power schemes and an automatic controller:
 
 - **Automatic:** night-saving from `00:00` to `08:00` by default, balanced during the day.
 - **Night saving:** caps CPU maximum state at 60%, disables boost where supported, and turns the display off sooner.
 - **Balanced:** full CPU range with normal display timing.
 - **High performance:** full CPU range and boost with a longer display timeout.
 
-All LOLILE schemes explicitly disable sleep, hibernation, and hybrid sleep. They do not change network-adapter, USB, disk, Tor, Snowflake, Tailscale, Chrome Remote Desktop, RDP, SMB, or Syncthing settings. The controller runs as `SYSTEM` before login and checks the schedule every five minutes.
+All daakLOLILE schemes explicitly disable sleep, hibernation, and hybrid sleep. They do not change network-adapter, USB, disk, Tor, Snowflake, Tailscale, Chrome Remote Desktop, RDP, SMB, or Syncthing settings. The controller runs as `SYSTEM` before login and checks the schedule every five minutes.
+
+## Safe memory maintenance
+
+Windows normally uses otherwise-idle RAM as a useful file cache, so daakLOLILE does not blindly empty memory on a timer. A daily `04:30` task checks physical-memory pressure without requiring a user login. Automatic trimming happens only when usage is at least 85% and free physical memory is at or below 2 GB.
+
+When intervention is justified, daakLOLILE trims only its own dashboard and monitoring helper processes. Tor, Snowflake, Tailscale, Chrome Remote Desktop, RDP, SMB, Syncthing, other applications, and the Windows file cache are excluded. The dashboard and macOS companion also offer a constrained manual maintenance button over localhost or Tailscale.
 
 ## Power readings and Corsair PSUs
 
 The PSU wattage printed on the label—650 W, 750 W, and so on—is maximum capacity, not continuous consumption.
 
-LOLILE uses real component sensors where LibreHardwareMonitor exposes them. It estimates missing CPU/system/PSU losses and labels the total wall-power value as an estimate. A standard PSU has no software data connection. Some digital Corsair RMi/HXi models can expose telemetry through an internal USB connection and iCUE, but LOLILE does not currently integrate iCUE.
+daakLOLILE uses real component sensors where LibreHardwareMonitor exposes them. It estimates missing CPU/system/PSU losses and labels the total wall-power value as an estimate. A standard PSU has no software data connection. Some digital Corsair RMi/HXi models can expose telemetry through an internal USB connection and iCUE, but daakLOLILE does not currently integrate iCUE.
 
 For accurate whole-PC energy measurement, use a reputable external smart plug or power meter with local API access.
 
@@ -109,7 +115,7 @@ For accurate whole-PC energy measurement, use a reputable external smart plug or
 
 | Item | Default |
 | --- | --- |
-| Install directory | `C:\ProgramData\LOLILE` |
+| Install directory | `C:\ProgramData\daakLOLILE` |
 | Dashboard | TCP `17657` |
 | Dashboard exposure | Tailscale ranges only |
 | Hardware sampling | Every 2 seconds |
@@ -117,6 +123,7 @@ For accurate whole-PC energy measurement, use a reputable external smart plug or
 | macOS refresh | Every 10 seconds |
 | Default night schedule | `00:00–08:00` local Windows time |
 | Power controller | Startup + every 5 minutes, as `SYSTEM` |
+| Memory maintenance | Daily at `04:30`, as `SYSTEM`; pressure-gated |
 | Tor root | `C:\ProgramData\TorRelay` |
 
 Energy history and relay traffic counters stay on the Windows PC. No analytics or third-party telemetry is included.
@@ -129,7 +136,7 @@ Run as Administrator:
 .\windows\uninstall.ps1
 ```
 
-The uninstaller removes LOLILE tasks, its firewall rule, widget shortcut, and installed files. It does not remove Tor, Snowflake, Tailscale, or their data. Use `-KeepData` to keep the LOLILE data directory.
+The uninstaller removes daakLOLILE tasks, its firewall rule, widget shortcut, and installed files. It does not remove Tor, Snowflake, Tailscale, or their data. Use `-KeepData` to keep the daakLOLILE data directory.
 
 ## Project layout
 
@@ -139,10 +146,11 @@ windows/
   uninstall.ps1
   hardware-monitor.ps1
   power-manager.ps1
+  memory-manager.ps1
   widget.ps1
   dashboard/
 macos/
-  Sources/LOLILEApp.swift
+  Sources/daakLOLILEApp.swift
   build.command
 docs/
 ```
@@ -153,7 +161,7 @@ Bug reports, sensor compatibility results, translations, accessibility improveme
 
 ## Disclaimer
 
-LOLILE is an independent community project. It is not affiliated with or endorsed by The Tor Project, Tailscale, Corsair, or LibreHardwareMonitor. Run relays in accordance with your local laws, ISP terms, and the official Tor relay documentation.
+daakLOLILE is an independent community project. It is not affiliated with or endorsed by The Tor Project, Tailscale, Corsair, or LibreHardwareMonitor. Run relays in accordance with your local laws, ISP terms, and the official Tor relay documentation.
 
 ## License
 

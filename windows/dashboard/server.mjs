@@ -6,8 +6,8 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
-const root = process.env.RELAYWATCH_PUBLIC_ROOT || "C:\\ProgramData\\LOLILE\\dashboard\\public";
-const appRoot = process.env.RELAYWATCH_ROOT || "C:\\ProgramData\\LOLILE";
+const root = process.env.RELAYWATCH_PUBLIC_ROOT || "C:\\ProgramData\\daakLOLILE\\dashboard\\public";
+const appRoot = process.env.RELAYWATCH_ROOT || "C:\\ProgramData\\daakLOLILE";
 const torRoot = process.env.TOR_ROOT || "C:\\ProgramData\\TorRelay";
 const torrcPath = join(torRoot, "torrc");
 const torExe = join(torRoot, "tor", "tor.exe");
@@ -17,8 +17,10 @@ const trafficPath = join(appRoot, "data", "traffic.json");
 const snowflakeTrafficPath = join(appRoot, "data", "snowflake-traffic.json");
 const snowflakeLogPath = process.env.SNOWFLAKE_LOG_PATH || "C:\\ProgramData\\SnowflakeProxy\\logs\\snowflake.log";
 const hardwareStatusPath = process.env.RELAYWATCH_HARDWARE_STATUS || join(appRoot, "hardware-status.json");
-const powerManagerPath = process.env.LOLILE_POWER_MANAGER || join(appRoot, "power-manager.ps1");
-const powerStatusPath = process.env.LOLILE_POWER_STATUS || join(appRoot, "power-status.json");
+const powerManagerPath = process.env.daakLOLILE_POWER_MANAGER || join(appRoot, "power-manager.ps1");
+const powerStatusPath = process.env.daakLOLILE_POWER_STATUS || join(appRoot, "power-status.json");
+const memoryManagerPath = process.env.daakLOLILE_MEMORY_MANAGER || join(appRoot, "memory-manager.ps1");
+const memoryStatusPath = process.env.daakLOLILE_MEMORY_STATUS || join(appRoot, "memory-status.json");
 const port = Number(process.env.RELAYWATCH_PORT || 17657);
 const orPort = Number(process.env.TOR_OR_PORT || 9001);
 const configuredServiceName = String(process.env.TOR_SERVICE_NAME || "tor");
@@ -137,7 +139,7 @@ async function consensusStatus() {
   try {
     const response = await fetch(`https://onionoo.torproject.org/details?lookup=${fingerprint}`, {
       signal: AbortSignal.timeout(5000),
-      headers: { "User-Agent": "LOLILE/2.0" },
+      headers: { "User-Agent": "daakLOLILE/2.0" },
     });
     const body = await response.json();
     const relay = body.relays?.[0];
@@ -382,6 +384,27 @@ async function powerStatus() {
   }
 }
 
+async function memoryStatus() {
+  try {
+    const value = JSON.parse((await readFile(memoryStatusPath, "utf8")).replace(/^\uFEFF/, ""));
+    const updated = Date.parse(value.updatedAt);
+    return {
+      ...value,
+      available: value.available === true,
+      ageSeconds: Number.isFinite(updated) ? Math.max(0, (Date.now() - updated) / 1000) : null,
+    };
+  } catch {
+    return {
+      available: false,
+      decision: "unknown",
+      message: "Bellek bakımı henüz çalışmadı.",
+      pressureDetected: false,
+      schedule: { dailyAt: "04:30", runsWithoutLogin: true },
+      policy: { automaticOnlyUnderPressure: true, protected: [] },
+    };
+  }
+}
+
 async function setPowerMode(input) {
   const mode = String(input.mode || "").toLowerCase();
   const nightStart = String(input.nightStart || "");
@@ -408,8 +431,19 @@ async function setPowerMode(input) {
   return powerStatus();
 }
 
+async function maintainMemory() {
+  await execFileAsync("powershell.exe", [
+    "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+    "-File", memoryManagerPath, "-Action", "Maintain", "-Force", "-InstallRoot", appRoot,
+  ], {
+    windowsHide: true,
+    timeout: 30000,
+  });
+  return memoryStatus();
+}
+
 async function buildStatus(settingsAllowed = false, powerAllowed = false) {
-  const [config, state, log, system, consensus, snowflake, hardware, power, fingerprint] = await Promise.all([
+  const [config, state, log, system, consensus, snowflake, hardware, power, memoryMaintenance, fingerprint] = await Promise.all([
     text(torrcPath),
     text(join(torRoot, "data", "state")),
     text(join(torRoot, "log", "notices.log")),
@@ -418,6 +452,7 @@ async function buildStatus(settingsAllowed = false, powerAllowed = false) {
     snowflakeStatus(),
     hardwareStatus(),
     powerStatus(),
+    memoryStatus(),
     relayFingerprint(),
   ]);
   const readHistory = stateSeries(state, "BWHistoryReadValues");
@@ -444,8 +479,8 @@ async function buildStatus(settingsAllowed = false, powerAllowed = false) {
 
   return {
     updatedAt: new Date().toISOString(),
-    product: "LOLILE",
-    permissions: { settings: settingsAllowed, power: powerAllowed },
+    product: "daakLOLILE",
+    permissions: { settings: settingsAllowed, power: powerAllowed, memory: powerAllowed },
     service: { running: system.running, startMode: system.startMode },
     port: { listening: system.listening, number: orPort },
     localIp: system.localIp,
@@ -456,6 +491,7 @@ async function buildStatus(settingsAllowed = false, powerAllowed = false) {
     snowflake,
     hardware,
     power,
+    memoryMaintenance,
     support: { total: total + snowflake.traffic.total },
     config: {
       nickname: configValue(config, "Nickname"),
@@ -628,6 +664,15 @@ const server = createServer(async (req, res) => {
       sendJson(res, 200, { ok: true, power });
       return;
     }
+    if (url.pathname === "/api/memory/maintain" && req.method === "POST") {
+      if (!powerAllowed) {
+        sendJson(res, 403, { error: "Bellek bakımı yalnızca bu bilgisayardan veya özel Tailscale ağından başlatılabilir." });
+        return;
+      }
+      const memoryMaintenance = await maintainMemory();
+      sendJson(res, 200, { ok: true, memoryMaintenance });
+      return;
+    }
     if (url.pathname === "/api/settings" && req.method === "POST") {
       if (!localRequest) {
         sendJson(res, 403, { error: "Ayarlar güvenlik nedeniyle yalnızca Windows bilgisayarındaki localhost panelinden değiştirilebilir." });
@@ -662,5 +707,5 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(port, "0.0.0.0", () => {
-  console.log(`LOLILE: http://127.0.0.1:${port} (power control is limited to localhost and Tailscale)`);
+  console.log(`daakLOLILE: http://127.0.0.1:${port} (power control is limited to localhost and Tailscale)`);
 });

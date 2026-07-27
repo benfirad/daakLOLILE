@@ -1,4 +1,4 @@
-# Contributing to LOLILE
+# Contributing to daakLOLILE
 
 Thank you for helping improve safe, privacy-preserving relay operations.
 
