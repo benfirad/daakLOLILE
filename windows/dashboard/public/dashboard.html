@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0d0c10">
-  <title>LOLILE · Tor Relay, PC and Power Control</title>
+  <title>daakLOLILE · Tor Relay, PC and Power Control</title>
   <meta name="description" content="Private Windows Tor relay, Snowflake, hardware monitoring and remote power-mode dashboard with a macOS menu bar companion.">
   <style>
     :root {
@@ -365,7 +365,7 @@
         <div class="onion" aria-hidden="true"></div>
         <div>
           <div class="eyebrow">Windows sistem ve Tor operasyon paneli</div>
-          <h1>LOLILE</h1>
+          <h1>daakLOLILE</h1>
         </div>
       </div>
       <div class="header-actions">
@@ -446,7 +446,7 @@
         </div>
         <div class="power-control">
           <div>
-            <div class="card-label">LOLILE güç yönetimi</div>
+            <div class="card-label">daakLOLILE güç yönetimi</div>
             <div class="power-mode-title" id="power-mode-title">Hazırlanıyor</div>
             <div class="power-mode-note" id="power-mode-note">Uyku kapalı; Tor, Tailscale, uzaktan masaüstü ve disk paylaşımı korunur.</div>
           </div>
@@ -465,6 +465,20 @@
               <button class="button" id="save-power-schedule" type="button">Saati kaydet</button>
             </div>
             <div class="power-message" id="power-message"></div>
+          </div>
+        </div>
+        <div class="power-control">
+          <div>
+            <div class="card-label">daakLOLILE bellek bakımı</div>
+            <div class="power-mode-title" id="memory-maintenance-title">Hazırlanıyor</div>
+            <div class="power-mode-note" id="memory-maintenance-note">Her gün 04:30’da kontrol edilir. Windows önbelleği ve kritik bağlantı servisleri korunur.</div>
+          </div>
+          <div class="power-actions">
+            <div class="power-schedule">
+              <span id="memory-maintenance-time">Son bakım bekleniyor</span>
+              <button class="button" id="memory-maintain" type="button">Şimdi güvenli bakım</button>
+            </div>
+            <div class="power-message" id="memory-message"></div>
           </div>
         </div>
         <div class="power-chart" id="power-chart" aria-label="Yakın dönem tahmini güç grafiği"></div>
@@ -544,7 +558,7 @@
       </article>
     </section>
 
-    <footer><span id="access-note">LOLILE güvenli bağlantı hazırlanıyor</span><span>5 saniyede bir otomatik yenilenir</span></footer>
+    <footer><span id="access-note">daakLOLILE güvenli bağlantı hazırlanıyor</span><span>5 saniyede bir otomatik yenilenir</span></footer>
   </main>
 
   <dialog id="settings-dialog" aria-labelledby="settings-title">
@@ -724,6 +738,23 @@
       $("night-end").disabled = !powerAllowed || power.available !== true;
       $("save-power-schedule").disabled = !powerAllowed || power.available !== true;
 
+      const memoryMaintenance = data.memoryMaintenance || {};
+      const memoryAllowed = data.permissions?.memory === true;
+      const memoryDecisionLabels = {
+        observed: "RAM dengeli",
+        "trimmed-managed-only": "Güvenli bakım tamamlandı",
+        "nothing-to-trim": "Temizlenecek yardımcı süreç yok",
+        unknown: "Bakım bekleniyor",
+      };
+      $("memory-maintenance-title").textContent =
+        memoryDecisionLabels[memoryMaintenance.decision] || "RAM izleniyor";
+      $("memory-maintenance-note").textContent = memoryMaintenance.message ||
+        "Her gün 04:30’da kontrol edilir; yalnızca gerçek baskıda daakLOLILE yardımcı süreçlerine müdahale edilir.";
+      $("memory-maintenance-time").textContent = memoryMaintenance.updatedAt
+        ? `Son kontrol ${new Date(memoryMaintenance.updatedAt).toLocaleString("tr-TR")}`
+        : "Son bakım bekleniyor";
+      $("memory-maintain").disabled = !memoryAllowed || memoryMaintenance.available !== true;
+
       const online = Boolean(data.service?.running && data.port?.listening && data.bootstrap >= 100);
       const relayListed = data.consensus?.running === true;
       const snowflakeRunning = data.snowflake?.running === true;
@@ -874,6 +905,29 @@
       }[mode] || "Güç modu";
     }
 
+    async function maintainMemory() {
+      if (!latestData?.permissions?.memory) return;
+      const button = $("memory-maintain");
+      const message = $("memory-message");
+      button.disabled = true;
+      message.textContent = "Güvenli bellek bakımı yapılıyor…";
+      try {
+        const response = await fetch("/api/memory/maintain", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Bellek bakımı tamamlanamadı.");
+        message.textContent = "Bakım tamamlandı; Tor ve uzaktan bağlantı servisleri korunuyor.";
+        await refresh();
+      } catch (error) {
+        message.textContent = error.message || "Bellek bakımı tamamlanamadı.";
+      } finally {
+        button.disabled = false;
+      }
+    }
+
     function syncQuotaField() {
       const disabled = $("unlimited-input").checked;
       $("quota-input").disabled = disabled;
@@ -935,6 +989,7 @@
       button.addEventListener("click", () => setPowerMode(button.dataset.powerMode));
     }
     $("save-power-schedule").addEventListener("click", () => setPowerMode("auto", true));
+    $("memory-maintain").addEventListener("click", maintainMemory);
     $("settings").addEventListener("click", openSettings);
     $("close-settings").addEventListener("click", () => $("settings-dialog").close());
     $("cancel-settings").addEventListener("click", () => $("settings-dialog").close());

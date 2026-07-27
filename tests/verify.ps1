@@ -6,6 +6,7 @@ $powerShellFiles = @(
     'windows\uninstall.ps1',
     'windows\hardware-monitor.ps1',
     'windows\power-manager.ps1',
+    'windows\memory-manager.ps1',
     'windows\widget.ps1'
 )
 
@@ -33,7 +34,7 @@ $scriptMatch = [regex]::Match($dashboard, '(?s)<script>(.*)</script>')
 if (-not $scriptMatch.Success) {
     throw 'Dashboard inline script was not found.'
 }
-$temporaryScript = Join-Path ([IO.Path]::GetTempPath()) ('lolile-dashboard-' + [guid]::NewGuid().ToString('N') + '.js')
+$temporaryScript = Join-Path ([IO.Path]::GetTempPath()) ('daaklolile-dashboard-' + [guid]::NewGuid().ToString('N') + '.js')
 try {
     [IO.File]::WriteAllText(
         $temporaryScript,
@@ -52,7 +53,7 @@ finally {
 }
 
 $serverSource = Get-Content -LiteralPath (Join-Path $repoRoot 'windows\dashboard\server.mjs') -Raw
-foreach ($required in @('/api/power','isTailscale','power-manager.ps1')) {
+foreach ($required in @('/api/power','/api/memory/maintain','isTailscale','power-manager.ps1','memory-manager.ps1')) {
     if ($serverSource -notmatch [regex]::Escape($required)) {
         throw "Missing protected power-control feature: $required"
     }
@@ -85,4 +86,4 @@ foreach ($file in $textFiles) {
     }
 }
 
-Write-Host 'LOLILE verification passed.' -ForegroundColor Green
+Write-Host 'daakLOLILE verification passed.' -ForegroundColor Green

@@ -4,7 +4,7 @@ Add-Type -AssemblyName WindowsBase
 Add-Type -AssemblyName System.Windows.Forms
 
 $createdNew = $false
-$widgetMutex = New-Object System.Threading.Mutex($true, 'Local\LOLILEWidget', [ref]$createdNew)
+$widgetMutex = New-Object System.Threading.Mutex($true, 'Local\daakLOLILEWidget', [ref]$createdNew)
 if (-not $createdNew) {
     exit 0
 }
@@ -38,7 +38,7 @@ $xaml = @'
         </Grid.ColumnDefinitions>
         <Ellipse x:Name="StatusDot" Width="7" Height="7" Fill="#E9B95D" Margin="0,1,8,0"/>
         <StackPanel Grid.Column="1">
-          <TextBlock Text="LOLILE · SİSTEM DESTEĞİ" Foreground="#9B94A3" FontSize="8" FontWeight="SemiBold"/>
+          <TextBlock Text="daakLOLILE · SİSTEM DESTEĞİ" Foreground="#9B94A3" FontSize="8" FontWeight="SemiBold"/>
           <TextBlock x:Name="StatusText" Text="Bağlanıyor" Foreground="#F4F1F6" FontSize="14"
                      FontWeight="SemiBold" Margin="0,1,0,0"/>
         </StackPanel>

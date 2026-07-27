@@ -9,13 +9,13 @@ param(
     [string]$NightStart,
     [ValidatePattern('^(?:[01]\d|2[0-3]):[0-5]\d$')]
     [string]$NightEnd,
-    [string]$InstallRoot = 'C:\ProgramData\LOLILE'
+    [string]$InstallRoot = 'C:\ProgramData\daakLOLILE'
 )
 
 $ErrorActionPreference = 'Stop'
 $configPath = Join-Path $InstallRoot 'power-config.json'
 $statusPath = Join-Path $InstallRoot 'power-status.json'
-$mutex = New-Object System.Threading.Mutex($false, 'Global\LOLILEPowerManager')
+$mutex = New-Object System.Threading.Mutex($false, 'Global\daakLOLILEPowerManager')
 
 function Invoke-PowerCfg {
     param(
@@ -111,7 +111,7 @@ function Set-PerformanceScheme {
 
 function Read-Config {
     if (-not (Test-Path -LiteralPath $configPath)) {
-        throw 'LOLILE power modes are not installed.'
+        throw 'daakLOLILE power modes are not installed.'
     }
     return Get-Content -LiteralPath $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
 }
@@ -159,7 +159,7 @@ function Write-Status {
     param($Config,[string]$EffectiveMode)
     $status = [ordered]@{
         available = $true
-        product = 'LOLILE'
+        product = 'daakLOLILE'
         controlMode = [string]$Config.controlMode
         effectiveMode = $EffectiveMode
         activeScheme = Get-ActiveScheme
@@ -178,7 +178,7 @@ function Invoke-Tick {
     $effective = Get-EffectiveMode -Config $Config
     $scheme = [string]$Config.schemes.$effective
     if (-not (Test-Scheme -Guid $scheme)) {
-        throw "The LOLILE '$effective' power scheme is missing."
+        throw "The daakLOLILE '$effective' power scheme is missing."
     }
     if ((Get-ActiveScheme) -ne $scheme.ToLowerInvariant()) {
         $null = Invoke-PowerCfg -Arguments @('/setactive',$scheme)
@@ -187,7 +187,7 @@ function Invoke-Tick {
 }
 
 if (-not $mutex.WaitOne([TimeSpan]::FromSeconds(20))) {
-    throw 'Another LOLILE power operation is still running.'
+    throw 'Another daakLOLILE power operation is still running.'
 }
 
 try {
@@ -199,17 +199,17 @@ try {
             try { $existing = Read-Config } catch {}
             $original = if ($existing.originalScheme) { [string]$existing.originalScheme } else { Get-ActiveScheme }
             $eco = if (Test-Scheme -Guid $existing.schemes.eco) { [string]$existing.schemes.eco } else {
-                New-Scheme -Template 'SCHEME_MAX' -Name 'LOLILE Night Saver' -Description 'Network and services stay online; CPU and display use less power.'
+                New-Scheme -Template 'SCHEME_MAX' -Name 'daakLOLILE Night Saver' -Description 'Network and services stay online; CPU and display use less power.'
             }
             $balanced = if (Test-Scheme -Guid $existing.schemes.balanced) { [string]$existing.schemes.balanced } else {
-                New-Scheme -Template 'SCHEME_BALANCED' -Name 'LOLILE Balanced' -Description 'Everyday use; sleep stays disabled and remote access stays online.'
+                New-Scheme -Template 'SCHEME_BALANCED' -Name 'daakLOLILE Balanced' -Description 'Everyday use; sleep stays disabled and remote access stays online.'
             }
             $performance = if (Test-Scheme -Guid $existing.schemes.performance) { [string]$existing.schemes.performance } else {
-                New-Scheme -Template 'SCHEME_MIN' -Name 'LOLILE High Performance' -Description 'Full CPU performance; sleep stays disabled and remote access stays online.'
+                New-Scheme -Template 'SCHEME_MIN' -Name 'daakLOLILE High Performance' -Description 'Full CPU performance; sleep stays disabled and remote access stays online.'
             }
-            $null = Invoke-PowerCfg -Arguments @('/changename',$eco,'LOLILE Night Saver','Network and services stay online; CPU and display use less power.')
-            $null = Invoke-PowerCfg -Arguments @('/changename',$balanced,'LOLILE Balanced','Everyday use; sleep stays disabled and remote access stays online.')
-            $null = Invoke-PowerCfg -Arguments @('/changename',$performance,'LOLILE High Performance','Full CPU performance; sleep stays disabled and remote access stays online.')
+            $null = Invoke-PowerCfg -Arguments @('/changename',$eco,'daakLOLILE Night Saver','Network and services stay online; CPU and display use less power.')
+            $null = Invoke-PowerCfg -Arguments @('/changename',$balanced,'daakLOLILE Balanced','Everyday use; sleep stays disabled and remote access stays online.')
+            $null = Invoke-PowerCfg -Arguments @('/changename',$performance,'daakLOLILE High Performance','Full CPU performance; sleep stays disabled and remote access stays online.')
             Set-EcoScheme -Scheme $eco
             Set-BalancedScheme -Scheme $balanced
             Set-PerformanceScheme -Scheme $performance

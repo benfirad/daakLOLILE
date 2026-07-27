@@ -1,7 +1,7 @@
 #requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$InstallRoot = 'C:\ProgramData\LOLILE',
+    [string]$InstallRoot = 'C:\ProgramData\daakLOLILE',
     [int]$SampleSeconds = 2
 )
 

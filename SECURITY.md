@@ -14,7 +14,7 @@ Use GitHub's private vulnerability reporting feature for this repository. Includ
 
 ## Supported security boundary
 
-LOLILE is intended to:
+daakLOLILE is intended to:
 
 - expose the dashboard only to localhost and explicitly allowed private/Tailscale networks;
 - keep Tor configuration writes restricted to localhost;
@@ -23,9 +23,13 @@ LOLILE is intended to:
 - avoid storing credentials in the repository;
 - run the collector and dashboard without an interactive user session.
 
-LOLILE is not an authentication gateway and should not be exposed directly to the public internet. Use a private network or add a separately audited authenticated reverse proxy.
+daakLOLILE is not an authentication gateway and should not be exposed directly to the public internet. Use a private network or add a separately audited authenticated reverse proxy.
 
-The power endpoint does not accept command strings, executable paths, service names, or arbitrary `powercfg` settings. It maps four fixed mode names to locally installed LOLILE schemes. Every scheme disables sleep and preserves network-dependent services.
+The power endpoint does not accept command strings, executable paths, service names, or arbitrary `powercfg` settings. It maps four fixed mode names to locally installed daakLOLILE schemes. Every scheme disables sleep and preserves network-dependent services.
+
+The memory-maintenance endpoint accepts no process names, paths, thresholds, or command strings. It can only run the bundled maintenance policy, which targets daakLOLILE helper processes. Tor, Snowflake, Tailscale, remote-desktop, file-sharing, and unrelated application processes are outside its allowlist.
+
+The Windows installer restricts the installation directory to full control for `SYSTEM` and Administrators, with read-and-execute access for standard users. This is required because scheduled tasks execute the installed scripts as `SYSTEM`.
 
 ## Sensitive files that must never be committed
 

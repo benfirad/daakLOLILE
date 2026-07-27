@@ -29,6 +29,6 @@ jobs:
           -parse-as-library
           -typecheck
           -target "$(uname -m)-apple-macos13.0"
-          macos/Sources/LOLILEApp.swift
+          macos/Sources/daakLOLILEApp.swift
           -framework SwiftUI
           -framework AppKit
