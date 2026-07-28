@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { createConnection } from "node:net";
-import { copyFile, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { randomBytes, timingSafeEqual } from "node:crypto";
+import { appendFile, copyFile, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import { extname, join, normalize, relative } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -31,6 +32,8 @@ const powerStatusPath = process.env.daakLOLILE_POWER_STATUS || join(appRoot, "po
 const memoryManagerPath = process.env.daakLOLILE_MEMORY_MANAGER || join(appRoot, "memory-manager.ps1");
 const memoryStatusPath = process.env.daakLOLILE_MEMORY_STATUS || join(appRoot, "memory-status.json");
 const volunteerStatusPath = process.env.daakLOLILE_VOLUNTEER_STATUS || join(appRoot, "volunteer-status.json");
+const boincCmdPath = process.env.daakLOLILE_BOINC_CMD || "C:\\Program Files\\BOINC\\boinccmd.exe";
+const consoleAuditPath = join(appRoot, "data", "console-audit.jsonl");
 const port = Number(process.env.RELAYWATCH_PORT || 17657);
 const orPort = Number(process.env.TOR_OR_PORT || 9001);
 const configuredServiceName = String(process.env.TOR_SERVICE_NAME || "tor");
@@ -39,8 +42,21 @@ let onionooCache = { checkedAt: 0, found: false, running: false, flags: [] };
 let controlCache = { checkedAt: 0, value: null, pending: null };
 const controlCacheLifetimeMs = 60000;
 let settingsBusy = false;
+let consoleBusy = false;
+const consoleToken = randomBytes(32).toString("base64url");
+const consoleRateLimits = new Map();
 const hardwareHistory = [];
 let lastHardwareSample = "";
+const allowedConsoleActions = Object.freeze({
+  "boinc-status": { label: "BOINC durumunu göster", risk: "read" },
+  "boinc-sync": { label: "Science United ile eşitle", risk: "safe" },
+  "boinc-pause": { label: "Hesaplamayı duraklat", risk: "safe" },
+  "boinc-resume": { label: "Hesaplamayı sürdür", risk: "safe" },
+  "boinc-network": { label: "Ağ bağlantısını yeniden dene", risk: "safe" },
+  "boinc-reload-config": { label: "BOINC ayarlarını yeniden oku", risk: "safe" },
+  "boinc-restart": { label: "BOINC servisini yeniden başlat", risk: "confirm" },
+  "system-health": { label: "Korunan servisleri denetle", risk: "read" },
+});
 
 const mime = {
   ".html": "text/html; charset=utf-8",
@@ -108,6 +124,165 @@ function isTailscale(address = "") {
     && parts[0] === 100
     && parts[1] >= 64
     && parts[1] <= 127;
+}
+
+function normalizedRemoteAddress(req) {
+  return String(req.socket.remoteAddress || "").replace(/^::ffff:/i, "").toLowerCase();
+}
+
+function isAllowedControlHost(hostHeader = "") {
+  try {
+    const hostname = new URL(`http://${hostHeader}`).hostname.replace(/^\[|\]$/g, "").toLowerCase();
+    const computerName = String(process.env.COMPUTERNAME || "").toLowerCase();
+    return hostname === "localhost"
+      || hostname === "127.0.0.1"
+      || hostname === "::1"
+      || hostname === computerName
+      || hostname.endsWith(".ts.net")
+      || isTailscale(hostname);
+  } catch {
+    return false;
+  }
+}
+
+function hasSameOrigin(req) {
+  const origin = String(req.headers.origin || "");
+  if (!origin) return isLoopback(req.socket.remoteAddress);
+  try {
+    const parsed = new URL(origin);
+    return (parsed.protocol === "http:" || parsed.protocol === "https:")
+      && parsed.host.toLowerCase() === String(req.headers.host || "").toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
+function hasConsoleToken(req) {
+  const supplied = String(req.headers["x-daaklolile-token"] || "");
+  const expected = Buffer.from(consoleToken);
+  const candidate = Buffer.from(supplied);
+  return candidate.length === expected.length && timingSafeEqual(candidate, expected);
+}
+
+function consoleRateAllowed(address) {
+  const now = Date.now();
+  const last = consoleRateLimits.get(address) || 0;
+  if (now - last < 800) return false;
+  consoleRateLimits.set(address, now);
+  if (consoleRateLimits.size > 128) {
+    for (const [key, value] of consoleRateLimits) {
+      if (now - value > 60000) consoleRateLimits.delete(key);
+    }
+  }
+  return true;
+}
+
+function clipConsoleOutput(value, limit = 48000) {
+  const textValue = String(value || "").replace(/\0/g, "").trim();
+  return textValue.length <= limit
+    ? textValue
+    : `${textValue.slice(0, limit)}\n\n[Çıktı güvenlik sınırı nedeniyle kısaltıldı.]`;
+}
+
+async function runConsoleProgram(file, args, timeout = 30000) {
+  const { stdout, stderr } = await execFileAsync(file, args, {
+    windowsHide: true,
+    timeout,
+    maxBuffer: 256 * 1024,
+    encoding: "utf8",
+  });
+  return clipConsoleOutput([stdout, stderr].filter(Boolean).join("\n"));
+}
+
+async function boincSnapshot(includeMessages = true) {
+  const sections = [];
+  for (const [title, args] of [
+    ["HESAP YÖNETİCİSİ", ["--acct_mgr", "info"]],
+    ["PROJELER", ["--get_project_status"]],
+    ["GÖREVLER", ["--get_tasks"]],
+  ]) {
+    const output = await runConsoleProgram(boincCmdPath, args);
+    sections.push(`${title}\n${output || "Bilgi yok."}`);
+  }
+  if (includeMessages) {
+    const messages = await runConsoleProgram(boincCmdPath, ["--get_messages", "0"]);
+    const recent = messages.split(/\r?\n/).filter(Boolean).slice(-80).join("\n");
+    sections.push(`SON BOINC OLAYLARI\n${recent || "Henüz olay yok."}`);
+  }
+  return clipConsoleOutput(sections.join("\n\n"));
+}
+
+async function writeConsoleAudit(entry) {
+  try {
+    await mkdir(join(appRoot, "data"), { recursive: true });
+    await appendFile(consoleAuditPath, `${JSON.stringify(entry)}\n`, "utf8");
+  } catch {}
+}
+
+async function executeConsoleAction(action, remoteAddress) {
+  const definition = allowedConsoleActions[action];
+  if (!definition) throw new Error("Bu komut izinli yönetim listesinde yok.");
+  if (consoleBusy) throw new Error("Başka bir yönetim işlemi sürüyor.");
+  consoleBusy = true;
+  const started = Date.now();
+  let ok = false;
+  try {
+    let output = "";
+    if (action === "boinc-status") {
+      output = await boincSnapshot(true);
+    } else if (action === "boinc-sync") {
+      const sync = await runConsoleProgram(boincCmdPath, ["--acct_mgr", "sync"], 45000);
+      const network = await runConsoleProgram(boincCmdPath, ["--network_available"]);
+      output = `${sync}\n${network}\n\n${await boincSnapshot(false)}`;
+    } else if (action === "boinc-pause") {
+      output = await runConsoleProgram(boincCmdPath, ["--set_run_mode", "never", "0"]);
+      output = `${output || "Hesaplama duraklatıldı."}\n\n${await boincSnapshot(false)}`;
+    } else if (action === "boinc-resume") {
+      output = await runConsoleProgram(boincCmdPath, ["--set_run_mode", "auto", "0"]);
+      output = `${output || "Hesaplama otomatik moda alındı."}\n\n${await boincSnapshot(false)}`;
+    } else if (action === "boinc-network") {
+      output = await runConsoleProgram(boincCmdPath, ["--network_available"]);
+      output = `${output || "BOINC ağ bağlantısı yeniden denenecek."}\n\n${await boincSnapshot(false)}`;
+    } else if (action === "boinc-reload-config") {
+      output = await runConsoleProgram(boincCmdPath, ["--read_cc_config"]);
+      output = `${output || "BOINC yapılandırması yeniden okundu."}\n\n${await boincSnapshot(false)}`;
+    } else if (action === "boinc-restart") {
+      const command = [
+        "Restart-Service -Name BOINC -Force -ErrorAction Stop",
+        "$deadline=(Get-Date).AddSeconds(20)",
+        "do { Start-Sleep -Milliseconds 500; $s=Get-Service -Name BOINC } while ($s.Status -ne 'Running' -and (Get-Date) -lt $deadline)",
+        "if ($s.Status -ne 'Running') { throw 'BOINC service did not start' }",
+        "$s | Select-Object Name,Status,StartType | ConvertTo-Json -Compress",
+      ].join("; ");
+      output = await runConsoleProgram("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command]);
+      output = `${output}\n\n${await boincSnapshot(false)}`;
+    } else if (action === "system-health") {
+      const command = [
+        "$names=@('BOINC','tor','Tailscale','chromoting')",
+        "$services=Get-Service -Name $names -ErrorAction SilentlyContinue | Select-Object Name,Status,StartType",
+        "$ports=Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object LocalPort -in 17657,9001,9051,9999 | Select-Object LocalAddress,LocalPort",
+        "[pscustomobject]@{services=$services;ports=$ports;checkedAt=[DateTime]::UtcNow.ToString('o')} | ConvertTo-Json -Depth 4",
+      ].join("; ");
+      output = await runConsoleProgram("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command]);
+    }
+    ok = true;
+    return {
+      ok: true,
+      action,
+      label: definition.label,
+      output: clipConsoleOutput(output),
+      completedAt: new Date().toISOString(),
+    };
+  } finally {
+    await writeConsoleAudit({
+      at: new Date().toISOString(),
+      action,
+      remoteAddress,
+      ok,
+      durationMs: Date.now() - started,
+    });
+    consoleBusy = false;
+  }
 }
 
 function normalizeContact(value) {
@@ -578,7 +753,7 @@ async function maintainMemory() {
   return memoryStatus();
 }
 
-async function buildStatus(settingsAllowed = false, powerAllowed = false) {
+async function buildStatus(settingsAllowed = false, powerAllowed = false, consoleAllowed = false) {
   const [config, state, log, system, consensus, snowflake, hardware, power, memoryMaintenance, volunteer, fingerprint] = await Promise.all([
     text(torrcPath),
     text(join(torRoot, "data", "state")),
@@ -615,7 +790,18 @@ async function buildStatus(settingsAllowed = false, powerAllowed = false) {
   return {
     updatedAt: new Date().toISOString(),
     product: "daakLOLILE",
-    permissions: { settings: settingsAllowed, power: powerAllowed, memory: powerAllowed },
+    permissions: { settings: settingsAllowed, power: powerAllowed, memory: powerAllowed, console: consoleAllowed },
+    control: consoleAllowed ? {
+      token: consoleToken,
+      executor: "SYSTEM",
+      mode: "allowlist",
+      actions: Object.entries(allowedConsoleActions).map(([id, value]) => ({ id, ...value })),
+    } : {
+      token: "",
+      executor: "SYSTEM",
+      mode: "read-only",
+      actions: [],
+    },
     service: { running: system.running, startMode: system.startMode },
     port: { listening: system.listening, number: orPort },
     localIp: system.localIp,
@@ -793,10 +979,26 @@ const server = createServer(async (req, res) => {
   const localRequest = isLoopback(req.socket.remoteAddress);
   const tailscaleRequest = isTailscale(req.socket.remoteAddress);
   const powerAllowed = localRequest || tailscaleRequest;
+  const consoleAllowed = powerAllowed && isAllowedControlHost(req.headers.host);
   try {
     const url = new URL(req.url || "/", `http://${req.headers.host || "127.0.0.1"}`);
     if (url.pathname === "/api/status" && req.method === "GET") {
-      sendJson(res, 200, await buildStatus(localRequest, powerAllowed));
+      sendJson(res, 200, await buildStatus(localRequest, powerAllowed, consoleAllowed));
+      return;
+    }
+    if (url.pathname === "/api/console/run" && req.method === "POST") {
+      const remoteAddress = normalizedRemoteAddress(req);
+      if (!consoleAllowed || !hasSameOrigin(req) || !hasConsoleToken(req)) {
+        sendJson(res, 403, { error: "Yönetim konsolu yalnızca doğrulanmış localhost veya Tailscale panel oturumundan kullanılabilir." });
+        return;
+      }
+      if (!consoleRateAllowed(remoteAddress)) {
+        sendJson(res, 429, { error: "Komutlar çok hızlı gönderildi; kısa bir süre sonra yeniden dene." });
+        return;
+      }
+      const input = await parseBody(req, 4096);
+      const result = await executeConsoleAction(String(input.action || ""), remoteAddress);
+      sendJson(res, 200, result);
       return;
     }
     if (url.pathname === "/api/power" && req.method === "POST") {
@@ -823,7 +1025,7 @@ const server = createServer(async (req, res) => {
         return;
       }
       await applySettings(await parseBody(req));
-      sendJson(res, 200, { ok: true, status: await buildStatus(true, true) });
+      sendJson(res, 200, { ok: true, status: await buildStatus(true, true, consoleAllowed) });
       return;
     }
     if (req.method !== "GET" && req.method !== "HEAD") {

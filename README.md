@@ -21,6 +21,7 @@ daakLOLILE combines live Tor middle-relay traffic, Snowflake proxy statistics, F
 - Keep collecting data before logon by running the Windows tasks as `SYSTEM`.
 - Check the PC and switch power modes from a Mac menu bar app over Tailscale.
 - Track Folding@home work, BOINC projects, and RIPE Atlas measurements without sharing storage.
+- Control BOINC from a constrained SYSTEM console over localhost or Tailscale without exposing arbitrary CMD or PowerShell execution.
 - Automatically use an efficient CPU/display profile at night without sleep, hibernation, network shutdown, or service interruption.
 - Keep Tor settings localhost-only while allowing the narrow power-mode endpoint from localhost and Tailscale.
 
@@ -36,7 +37,9 @@ ExitPolicy reject *:*
 
 The installer creates an inbound rule for the dashboard port that accepts only Tailscale IPv4 and IPv6 ranges. It does **not** change the Tor ORPort, router forwarding, Tailscale, Remote Desktop, file sharing, or Snowflake configuration.
 
-The API deliberately allows Tor settings changes only from loopback (`127.0.0.1` or `::1`). The separate power endpoint accepts requests only from loopback or Tailscale addresses and can select only the predefined `auto`, `eco`, `balanced`, and `performance` profiles. It cannot execute arbitrary commands or stop services. Treat relay nickname, fingerprint, public ContactInfo, IP addresses, and logs as potentially sensitive operational information.
+The API deliberately allows Tor settings changes only from loopback (`127.0.0.1` or `::1`). The separate power endpoint accepts requests only from loopback or Tailscale addresses and can select only the predefined `auto`, `eco`, `balanced`, and `performance` profiles. It cannot execute arbitrary commands or stop services.
+
+The BOINC console is also limited to loopback or Tailscale source addresses and requires an allowed host header, same-origin request, and an in-memory control token. It maps fixed action IDs to bundled BOINC/service operations; it never accepts command text, executable paths, arguments, service names, or scripts from the browser. Every console action is appended to a local audit log without storing command output. Treat relay nickname, fingerprint, public ContactInfo, IP addresses, and logs as potentially sensitive operational information.
 
 ## Requirements
 

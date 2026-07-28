@@ -64,7 +64,11 @@ $serverSource = Get-Content -LiteralPath (Join-Path $repoRoot 'windows\dashboard
 foreach ($required in @(
     '/api/power',
     '/api/memory/maintain',
+    '/api/console/run',
     'isTailscale',
+    'allowedConsoleActions',
+    'timingSafeEqual',
+    'console-audit.jsonl',
     'power-manager.ps1',
     'memory-manager.ps1',
     'volunteer-status.json',
@@ -73,6 +77,32 @@ foreach ($required in @(
 )) {
     if ($serverSource -notmatch [regex]::Escape($required)) {
         throw "Missing protected power-control feature: $required"
+    }
+}
+
+$unsafeConsolePatterns = @(
+    'input\.command',
+    'input\.executable',
+    'input\.arguments',
+    'shell\s*:\s*true',
+    'exec\s*\('
+)
+foreach ($pattern in $unsafeConsolePatterns) {
+    if ($serverSource -match $pattern) {
+        throw "Unsafe arbitrary console capability detected: $pattern"
+    }
+}
+
+$dashboardSource = Get-Content -LiteralPath (Join-Path $repoRoot 'windows\dashboard\public\dashboard.html') -Raw
+foreach ($required in @(
+    'Güvenli BOINC konsolu',
+    'data-console-action="boinc-sync"',
+    'data-console-action="boinc-pause"',
+    'data-console-action="boinc-restart"',
+    'X-daakLOLILE-Token'
+)) {
+    if ($dashboardSource -notmatch [regex]::Escape($required)) {
+        throw "Missing constrained console UI feature: $required"
     }
 }
 

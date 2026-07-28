@@ -238,6 +238,47 @@
     .project-state.bad { color: var(--red); }
     .project-detail { color: var(--muted); font-size: 11px; line-height: 1.55; }
     .project-meta { color: #7f7787; font-family: var(--mono); font-size: 10px; }
+    .console-card { grid-column: span 12; }
+    .console-layout {
+      display: grid;
+      grid-template-columns: minmax(235px, .72fr) minmax(0, 1.28fr);
+      gap: 16px;
+      align-items: stretch;
+    }
+    .console-controls {
+      border: 1px solid rgba(255,255,255,.055);
+      border-radius: 13px;
+      padding: 16px;
+      background: rgba(255,255,255,.024);
+    }
+    .console-note { margin: 0 0 14px; color: var(--muted); font-size: 11px; line-height: 1.6; }
+    .console-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .console-actions .button { min-height: 38px; padding: 8px 11px; font-size: 11px; line-height: 1.3; }
+    .console-actions .button.confirm { border-color: rgba(233,185,93,.38); color: var(--amber); }
+    .console-message { min-height: 18px; margin-top: 12px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .console-message.error { color: var(--red); }
+    .console-message.success { color: var(--green); }
+    .console-output {
+      min-height: 310px;
+      max-height: 460px;
+      margin: 0;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border: 1px solid #29242f;
+      border-radius: 13px;
+      padding: 16px;
+      background: #0d0c10;
+      color: #c8c1ce;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      line-height: 1.58;
+      scrollbar-color: #4b4055 #15131a;
+    }
+    .console-security { display: inline-flex; align-items: center; gap: 7px; }
+    .console-security::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--amber); }
+    .console-security.good { color: var(--green); }
+    .console-security.good::before { background: var(--green); }
     .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 22px; }
     .card h2 { margin: 5px 0 0; font-size: 18px; letter-spacing: -.025em; }
     .quota-number { font-size: 13px; color: var(--muted); font-family: var(--mono); }
@@ -358,8 +399,9 @@
     @media (max-width: 900px) {
       .hero { grid-template-columns: 1fr; }
       .hero-side { border-left: 0; border-top: 1px solid var(--line); padding: 22px 0 0; }
-      .usage, .health, .logs, .network, .snowflake, .volunteer, .processes-card, .storage-card { grid-column: span 12; }
+      .usage, .health, .logs, .network, .snowflake, .volunteer, .console-card, .processes-card, .storage-card { grid-column: span 12; }
       .hardware-layout { grid-template-columns: 1fr; }
+      .console-layout { grid-template-columns: 1fr; }
       .snowflake-grid { grid-template-columns: repeat(2, 1fr); }
       .project-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
@@ -378,6 +420,7 @@
       .power-schedule { justify-content: flex-start; flex-wrap: wrap; }
       .usage-meta, .field-grid { grid-template-columns: 1fr; }
       .project-grid { grid-template-columns: 1fr; }
+      .console-actions { grid-template-columns: 1fr; }
       .card { padding: 17px; }
       .logline { grid-template-columns: 62px 44px 1fr; font-size: 10px; gap: 6px; }
       footer { flex-direction: column; }
@@ -596,6 +639,36 @@
         </div>
       </article>
 
+      <article class="card console-card">
+        <div class="card-head">
+          <div>
+            <div class="card-label">İzinli uzaktan yönetim</div>
+            <h2>Güvenli BOINC konsolu</h2>
+          </div>
+          <span class="quota-number console-security" id="console-security">Erişim doğrulanıyor</span>
+        </div>
+        <div class="console-layout">
+          <section class="console-controls">
+            <p class="console-note">
+              Komutlar SYSTEM yetkisiyle çalışır ancak serbest CMD/PowerShell kapalıdır.
+              Yalnızca aşağıdaki denetlenmiş BOINC ve sistem sağlık işlemleri çalıştırılabilir.
+            </p>
+            <div class="console-actions">
+              <button class="button" type="button" data-console-action="boinc-status">Durumu ve olayları göster</button>
+              <button class="button primary" type="button" data-console-action="boinc-sync">Science United ile eşitle</button>
+              <button class="button" type="button" data-console-action="boinc-pause">Hesaplamayı duraklat</button>
+              <button class="button" type="button" data-console-action="boinc-resume">Hesaplamayı sürdür</button>
+              <button class="button" type="button" data-console-action="boinc-network">Ağı yeniden dene</button>
+              <button class="button" type="button" data-console-action="boinc-reload-config">Ayarları yeniden oku</button>
+              <button class="button" type="button" data-console-action="system-health">Korunan servisleri denetle</button>
+              <button class="button confirm" type="button" data-console-action="boinc-restart" data-confirm="true">BOINC servisini yeniden başlat</button>
+            </div>
+            <div class="console-message" id="console-message">Konsol hazırlanıyor…</div>
+          </section>
+          <pre class="console-output" id="console-output" tabindex="0">BOINC durum bilgisi yükleniyor…</pre>
+        </div>
+      </article>
+
       <article class="card logs">
         <div class="card-head"><div><div class="card-label">Son olaylar</div><h2>Tor günlüğü</h2></div><span class="quota-number">Canlı · son 30 satır</span></div>
         <div class="logbox" id="logs"><div class="empty">Günlük yükleniyor…</div></div>
@@ -663,6 +736,7 @@
   <script>
     const $ = (id) => document.getElementById(id);
     let latestData = null;
+    let consoleRunning = false;
 
     const formatBytes = (bytes) => {
       if (!Number.isFinite(Number(bytes)) || Number(bytes) < 0) return "—";
@@ -928,11 +1002,39 @@
       $("folding-detail").textContent = folding.detail || "Folding@home durumu alınamadı.";
       $("folding-meta").textContent = `Boşta çalışır · ${Number(folding.cpuThreads) || 2} CPU iş parçacığı · kullanıcı ${folding.user || "lolile"}`;
       $("boinc-detail").textContent = boinc.detail || "BOINC durumu alınamadı.";
-      $("boinc-meta").textContent = `%${Number(boinc.limits?.cpuPercent) || 33} CPU · ${Number(boinc.limits?.diskGB) || 5} GB disk · GPU kapalı`;
+      const boincProjects = Array.isArray(boinc.projects) ? boinc.projects : [];
+      $("boinc-meta").textContent = `%${Number(boinc.limits?.cpuPercent) || 33} CPU · ${Number(boinc.limits?.diskGB) || 5} GB disk · ${boincProjects.length} proje · GPU kapalı`;
       $("ripe-detail").textContent = ripe.detail || "RIPE Atlas durumu alınamadı.";
       $("ripe-meta").textContent = "Düşük kaynak · disk paylaşımı yok · 7/24";
       const activeProjects = Math.max(0, Number(data.support?.activeProjects) || 0);
       $("project-active").textContent = `${activeProjects}/4 aktif · uzaktan erişim korunuyor`;
+
+      const consoleAllowed = data.permissions?.console === true && Boolean(data.control?.token);
+      $("console-security").textContent = consoleAllowed
+        ? `${data.control?.executor || "SYSTEM"} · izinli komutlar`
+        : "Salt okunur";
+      $("console-security").className = "quota-number console-security " + (consoleAllowed ? "good" : "");
+      for (const button of document.querySelectorAll("[data-console-action]")) {
+        button.disabled = !consoleAllowed || consoleRunning;
+      }
+      if (!$("console-output").dataset.used) {
+        const projectNames = boincProjects.map(project => project.name || project.url).filter(Boolean);
+        $("console-output").textContent = [
+          `BOINC servisi: ${boinc.running ? "Çalışıyor" : "Kapalı"}`,
+          `Başlangıç: ${boinc.serviceStartMode || "Bilinmiyor"}`,
+          `Science United projeleri: ${projectNames.length ? projectNames.join(", ") : "Görev bekleniyor"}`,
+          `Aktif görev: ${Number(boinc.activeTasks) || 0}`,
+          "",
+          consoleAllowed
+            ? "Bir işlem seçtiğinde doğrulanmış çıktı burada gösterilecek."
+            : "Yönetim işlemleri yalnızca localhost veya Tailscale üzerinden kullanılabilir.",
+        ].join("\n");
+      }
+      if (!consoleRunning) {
+        $("console-message").textContent = consoleAllowed
+          ? "Konsol hazır · tüm işlemler denetim günlüğüne kaydedilir"
+          : "Bu bağlantıda yönetim komutları kapalı";
+      }
 
       const settingsAllowed = data.permissions?.settings === true;
       $("settings").disabled = !settingsAllowed;
@@ -1055,6 +1157,50 @@
       }
     }
 
+    async function runConsoleAction(button) {
+      const action = String(button.dataset.consoleAction || "");
+      if (!action || !latestData?.permissions?.console || !latestData?.control?.token) return;
+      if (button.dataset.confirm === "true" && !window.confirm("BOINC servisi kısa süreli yeniden başlatılacak. Devam edilsin mi?")) {
+        return;
+      }
+      const message = $("console-message");
+      const output = $("console-output");
+      const buttons = [...document.querySelectorAll("[data-console-action]")];
+      consoleRunning = true;
+      buttons.forEach(item => { item.disabled = true; });
+      message.className = "console-message";
+      message.textContent = "İzinli yönetim işlemi çalıştırılıyor…";
+      try {
+        const response = await fetch("/api/console/run", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-daakLOLILE-Token": latestData.control.token,
+          },
+          body: JSON.stringify({ action }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Yönetim işlemi tamamlanamadı.");
+        output.dataset.used = "true";
+        output.textContent = [
+          `[${new Date(result.completedAt).toLocaleString("tr-TR")}]`,
+          result.label || action,
+          "",
+          result.output || "İşlem tamamlandı; ek çıktı yok.",
+        ].join("\n");
+        await refresh();
+        message.className = "console-message success";
+        message.textContent = "İşlem tamamlandı ve denetim günlüğüne kaydedildi.";
+      } catch (error) {
+        message.className = "console-message error";
+        message.textContent = error.message || "Yönetim işlemi tamamlanamadı.";
+      } finally {
+        consoleRunning = false;
+        const allowed = latestData?.permissions?.console === true;
+        buttons.forEach(item => { item.disabled = !allowed; });
+      }
+    }
+
     function syncQuotaField() {
       const disabled = $("unlimited-input").checked;
       $("quota-input").disabled = disabled;
@@ -1114,6 +1260,9 @@
     $("refresh").addEventListener("click", refresh);
     for (const button of document.querySelectorAll("[data-power-mode]")) {
       button.addEventListener("click", () => setPowerMode(button.dataset.powerMode));
+    }
+    for (const button of document.querySelectorAll("[data-console-action]")) {
+      button.addEventListener("click", () => runConsoleAction(button));
     }
     $("save-power-schedule").addEventListener("click", () => setPowerMode("auto", true));
     $("memory-maintain").addEventListener("click", maintainMemory);
