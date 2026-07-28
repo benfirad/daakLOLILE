@@ -25,6 +25,7 @@ $hardwareTask = 'daakLOLILE Hardware Monitor'
 $dashboardTask = 'daakLOLILE Dashboard'
 $powerTask = 'daakLOLILE Power Manager'
 $memoryTask = 'daakLOLILE Memory Maintenance'
+$volunteerTask = 'daakLOLILE Volunteer Monitor'
 $firewallRule = 'daakLOLILE Dashboard (Tailscale only)'
 $lhmVersion = '0.9.6'
 $lhmUrl = 'https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/download/v0.9.6/LibreHardwareMonitor.zip'
@@ -63,6 +64,8 @@ foreach ($required in @(
     (Join-Path $sourceRoot 'windows\hardware-monitor.ps1'),
     (Join-Path $sourceRoot 'windows\power-manager.ps1'),
     (Join-Path $sourceRoot 'windows\memory-manager.ps1'),
+    (Join-Path $sourceRoot 'windows\volunteer-monitor.ps1'),
+    (Join-Path $sourceRoot 'windows\fah-control.mjs'),
     (Join-Path $sourceRoot 'windows\widget.ps1'),
     (Join-Path $sourceRoot 'windows\dashboard\server.mjs'),
     (Join-Path $sourceRoot 'windows\dashboard\public\dashboard.html')
@@ -74,13 +77,17 @@ foreach ($required in @(
 
 New-Item -ItemType Directory -Path $installRoot,$dashboardRoot,$publicRoot,$libraryRoot,$dataRoot -Force | Out-Null
 
-foreach ($taskName in @(
-    $hardwareTask,$dashboardTask,$powerTask,$memoryTask,
+$legacyTasks = @(
     'RelayWatch Hardware Monitor','RelayWatch Dashboard','RelayWatch Power Manager',
     'LOLILE Hardware Monitor','LOLILE Dashboard','LOLILE Power Manager',
     'LOLILE Memory Maintenance'
-)) {
+)
+foreach ($taskName in @($hardwareTask,$dashboardTask,$powerTask,$memoryTask,$volunteerTask) + $legacyTasks) {
     Stop-RelayWatchTask -Name $taskName
+}
+foreach ($taskName in $legacyTasks) {
+    Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue |
+        Unregister-ScheduledTask -Confirm:$false
 }
 
 Get-NetTCPConnection -LocalPort $DashboardPort -State Listen -ErrorAction SilentlyContinue |
@@ -141,6 +148,13 @@ Write-Utf8Bom `
 Write-Utf8Bom `
     -Source (Join-Path $sourceRoot 'windows\memory-manager.ps1') `
     -Destination (Join-Path $installRoot 'memory-manager.ps1')
+Write-Utf8Bom `
+    -Source (Join-Path $sourceRoot 'windows\volunteer-monitor.ps1') `
+    -Destination (Join-Path $installRoot 'volunteer-monitor.ps1')
+Copy-Item `
+    -LiteralPath (Join-Path $sourceRoot 'windows\fah-control.mjs') `
+    -Destination (Join-Path $installRoot 'fah-control.mjs') `
+    -Force
 Copy-Item `
     -LiteralPath (Join-Path $sourceRoot 'windows\dashboard\server.mjs') `
     -Destination (Join-Path $dashboardRoot 'server.mjs') `
@@ -189,9 +203,13 @@ $dashboardLauncher = @"
 `$env:daakLOLILE_POWER_STATUS = '$installRoot\power-status.json'
 `$env:daakLOLILE_MEMORY_MANAGER = '$installRoot\memory-manager.ps1'
 `$env:daakLOLILE_MEMORY_STATUS = '$installRoot\memory-status.json'
+`$env:daakLOLILE_VOLUNTEER_STATUS = '$installRoot\volunteer-status.json'
 `$env:TOR_ROOT = '$escapedTorRoot'
 `$env:TOR_OR_PORT = '$TorOrPort'
 `$env:TOR_SERVICE_NAME = '$TorServiceName'
+Start-Process -FilePath '$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe' ``
+    -ArgumentList '-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "$installRoot\volunteer-monitor.ps1" -InstallRoot "$installRoot"' ``
+    -WindowStyle Hidden
 & '$escapedNode' '$dashboardRoot\server.mjs'
 "@
 Set-Content -LiteralPath (Join-Path $installRoot 'start-dashboard.ps1') -Value $dashboardLauncher -Encoding UTF8
@@ -222,6 +240,10 @@ $powerAction = New-ScheduledTaskAction `
 $memoryAction = New-ScheduledTaskAction `
     -Execute $powerShell `
     -Argument "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$installRoot\memory-manager.ps1`" -Action Maintain -InstallRoot `"$installRoot`"" `
+    -WorkingDirectory $installRoot
+$volunteerAction = New-ScheduledTaskAction `
+    -Execute $powerShell `
+    -Argument "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$installRoot\volunteer-monitor.ps1`" -InstallRoot `"$installRoot`"" `
     -WorkingDirectory $installRoot
 $startup = New-ScheduledTaskTrigger -AtStartup
 $watchdog = New-ScheduledTaskTrigger `
@@ -262,6 +284,14 @@ Register-ScheduledTask `
     -Principal $principal `
     -Settings $settings `
     -Description 'daakLOLILE daily safe memory maintenance. Critical networking and sharing services are excluded.' `
+    -Force | Out-Null
+Register-ScheduledTask `
+    -TaskName $volunteerTask `
+    -Action $volunteerAction `
+    -Trigger @($startup,$watchdog) `
+    -Principal $principal `
+    -Settings $settings `
+    -Description 'daakLOLILE Folding@home, BOINC and RIPE Atlas monitor. Runs without user logon.' `
     -Force | Out-Null
 
 foreach ($oldRule in @(
@@ -308,6 +338,7 @@ if ($LASTEXITCODE -ne 0) {
 Start-ScheduledTask -TaskName $hardwareTask
 Start-ScheduledTask -TaskName $dashboardTask
 Start-ScheduledTask -TaskName $powerTask
+Start-ScheduledTask -TaskName $volunteerTask
 
 if ($InstallWidget) {
     $launcher = Join-Path $installRoot 'launch-widget.vbs'
@@ -346,4 +377,5 @@ Write-Host "daakLOLILE is ready: http://127.0.0.1:$DashboardPort" -ForegroundCol
 Write-Host 'Remote dashboard and power control are limited to Tailscale address ranges.'
 Write-Host 'Automatic night mode defaults to 00:00-08:00. Sleep, Tor, Tailscale, Chrome Remote Desktop and SMB remain enabled.'
 Write-Host 'Safe memory maintenance runs daily at 04:30 and touches only daakLOLILE helper processes when memory pressure is real.'
+Write-Host 'Volunteer computing and measurement status is monitored without requiring user logon.'
 Write-Host 'The total wall-power value is an estimate unless a supported external meter is integrated.'

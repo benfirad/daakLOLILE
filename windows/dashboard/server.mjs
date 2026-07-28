@@ -21,6 +21,7 @@ const powerManagerPath = process.env.daakLOLILE_POWER_MANAGER || join(appRoot, "
 const powerStatusPath = process.env.daakLOLILE_POWER_STATUS || join(appRoot, "power-status.json");
 const memoryManagerPath = process.env.daakLOLILE_MEMORY_MANAGER || join(appRoot, "memory-manager.ps1");
 const memoryStatusPath = process.env.daakLOLILE_MEMORY_STATUS || join(appRoot, "memory-status.json");
+const volunteerStatusPath = process.env.daakLOLILE_VOLUNTEER_STATUS || join(appRoot, "volunteer-status.json");
 const port = Number(process.env.RELAYWATCH_PORT || 17657);
 const orPort = Number(process.env.TOR_OR_PORT || 9001);
 const configuredServiceName = String(process.env.TOR_SERVICE_NAME || "tor");
@@ -405,6 +406,51 @@ async function memoryStatus() {
   }
 }
 
+async function volunteerStatus() {
+  try {
+    const value = JSON.parse((await readFile(volunteerStatusPath, "utf8")).replace(/^\uFEFF/, ""));
+    const updated = Date.parse(value.updatedAt);
+    return {
+      ...value,
+      available: Number.isFinite(updated) && Date.now() - updated < 120000,
+      ageSeconds: Number.isFinite(updated) ? Math.max(0, (Date.now() - updated) / 1000) : null,
+    };
+  } catch {
+    return {
+      available: false,
+      updatedAt: null,
+      ageSeconds: null,
+      folding: {
+        installed: false,
+        running: false,
+        state: "not-installed",
+        detail: "Folding@home durumu henüz alınamadı.",
+      },
+      boinc: {
+        installed: false,
+        running: false,
+        state: "not-installed",
+        detail: "BOINC durumu henüz alınamadı.",
+        projects: [],
+        activeTasks: 0,
+      },
+      ripeAtlas: {
+        installed: false,
+        running: false,
+        registered: false,
+        state: "windows-feature-required",
+        detail: "RIPE Atlas durumu henüz alınamadı.",
+      },
+      policy: {
+        preservesRemoteAccess: true,
+        noPublicDiskSharing: true,
+        snowflakeAlwaysOn: true,
+        unattended: true,
+      },
+    };
+  }
+}
+
 async function setPowerMode(input) {
   const mode = String(input.mode || "").toLowerCase();
   const nightStart = String(input.nightStart || "");
@@ -495,7 +541,7 @@ async function maintainMemory() {
 }
 
 async function buildStatus(settingsAllowed = false, powerAllowed = false) {
-  const [config, state, log, system, consensus, snowflake, hardware, power, memoryMaintenance, fingerprint] = await Promise.all([
+  const [config, state, log, system, consensus, snowflake, hardware, power, memoryMaintenance, volunteer, fingerprint] = await Promise.all([
     text(torrcPath),
     text(join(torRoot, "data", "state")),
     text(join(torRoot, "log", "notices.log")),
@@ -505,6 +551,7 @@ async function buildStatus(settingsAllowed = false, powerAllowed = false) {
     hardwareStatus(),
     powerStatus(),
     memoryStatus(),
+    volunteerStatus(),
     relayFingerprint(),
   ]);
   const readHistory = stateSeries(state, "BWHistoryReadValues");
@@ -540,7 +587,16 @@ async function buildStatus(settingsAllowed = false, powerAllowed = false) {
     hardware,
     power,
     memoryMaintenance,
-    support: { total: total + snowflake.traffic.total },
+    volunteer,
+    support: {
+      total: total + snowflake.traffic.total,
+      activeProjects: [
+        snowflake.running,
+        volunteer.folding?.running,
+        volunteer.boinc?.running && (volunteer.boinc?.projects?.length || 0) > 0,
+        volunteer.ripeAtlas?.running,
+      ].filter(Boolean).length,
+    },
     config: {
       nickname: configValue(config, "Nickname"),
       fingerprint,

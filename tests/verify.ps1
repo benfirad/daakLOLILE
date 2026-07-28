@@ -7,6 +7,8 @@ $powerShellFiles = @(
     'windows\hardware-monitor.ps1',
     'windows\power-manager.ps1',
     'windows\memory-manager.ps1',
+    'windows\volunteer-monitor.ps1',
+    'windows\install-volunteer-stack.ps1',
     'windows\widget.ps1'
 )
 
@@ -27,6 +29,10 @@ foreach ($relative in $powerShellFiles) {
 & node --check (Join-Path $repoRoot 'windows\dashboard\server.mjs')
 if ($LASTEXITCODE -ne 0) {
     throw 'Node syntax check failed.'
+}
+& node --check (Join-Path $repoRoot 'windows\fah-control.mjs')
+if ($LASTEXITCODE -ne 0) {
+    throw 'Folding@home control syntax check failed.'
 }
 
 $dashboard = Get-Content -LiteralPath (Join-Path $repoRoot 'windows\dashboard\public\dashboard.html') -Raw
@@ -53,7 +59,16 @@ finally {
 }
 
 $serverSource = Get-Content -LiteralPath (Join-Path $repoRoot 'windows\dashboard\server.mjs') -Raw
-foreach ($required in @('/api/power','/api/memory/maintain','isTailscale','power-manager.ps1','memory-manager.ps1','friendlyTorLogs','No circuits are opened')) {
+foreach ($required in @(
+    '/api/power',
+    '/api/memory/maintain',
+    'isTailscale',
+    'power-manager.ps1',
+    'memory-manager.ps1',
+    'volunteer-status.json',
+    'friendlyTorLogs',
+    'No circuits are opened'
+)) {
     if ($serverSource -notmatch [regex]::Escape($required)) {
         throw "Missing protected power-control feature: $required"
     }

@@ -54,6 +54,44 @@ private struct RelayStatus: Decodable {
 
     struct Support: Decodable {
         let total: Double
+        let activeProjects: Int?
+    }
+
+    struct Volunteer: Decodable {
+        struct Folding: Decodable {
+            let installed: Bool
+            let running: Bool
+            let state: String
+            let detail: String
+            let completedWorkUnitsObserved: Int?
+        }
+
+        struct Boinc: Decodable {
+            struct Project: Decodable {
+                let name: String
+                let url: String?
+            }
+
+            let installed: Bool
+            let running: Bool
+            let state: String
+            let detail: String
+            let projects: [Project]?
+            let activeTasks: Int?
+        }
+
+        struct RipeAtlas: Decodable {
+            let installed: Bool
+            let running: Bool
+            let registered: Bool
+            let state: String
+            let detail: String
+        }
+
+        let available: Bool?
+        let folding: Folding
+        let boinc: Boinc
+        let ripeAtlas: RipeAtlas
     }
 
     struct PowerMode: Decodable {
@@ -140,6 +178,7 @@ private struct RelayStatus: Decodable {
     let hardware: Hardware?
     let power: PowerMode?
     let memoryMaintenance: MemoryMaintenance?
+    let volunteer: Volunteer?
 }
 
 @MainActor
@@ -309,6 +348,25 @@ private final class RelayMonitor: ObservableObject {
 
     static func formatRate(_ bytes: Double?) -> String {
         "\(formatBytes(max(0, bytes ?? 0)))/sn"
+    }
+
+    static func volunteerState(_ state: String, running: Bool) -> String {
+        if running {
+            switch state {
+            case "working": return "İşliyor"
+            case "measuring": return "Ölçüm yapıyor"
+            default: return "Çalışıyor"
+            }
+        }
+        switch state {
+        case "account-required": return "Hesap bekliyor"
+        case "windows-feature-required": return "WSL bekliyor"
+        case "distro-required": return "Linux bekliyor"
+        case "probe-install-required": return "Prob bekliyor"
+        case "not-installed": return "Kurulum bekliyor"
+        case "stopped": return "Kapalı"
+        default: return "Hazırlanıyor"
+        }
     }
 
     private static func cleanedHost(_ value: String) -> String {
@@ -490,6 +548,37 @@ private struct RelayMenuView: View {
                         }
 
                         Text("Her gün \(memory.schedule.dailyAt) · Windows önbelleği, Tor ve uzaktan bağlantılar korunur.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Divider()
+                }
+
+                if let volunteer = status.volunteer {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Gönüllü projeler")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text("\(status.support?.activeProjects ?? 0)/4 aktif")
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                        }
+                        MetricRow(
+                            title: "Folding@home",
+                            value: RelayMonitor.volunteerState(volunteer.folding.state, running: volunteer.folding.running)
+                        )
+                        MetricRow(
+                            title: "BOINC",
+                            value: RelayMonitor.volunteerState(volunteer.boinc.state, running: volunteer.boinc.running)
+                        )
+                        MetricRow(
+                            title: "RIPE Atlas",
+                            value: RelayMonitor.volunteerState(volunteer.ripeAtlas.state, running: volunteer.ripeAtlas.running)
+                        )
+                        Text("Snowflake 7/24; bilimsel işler kontrollü kaynaklarla. Genel disk paylaşımı yok.")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }

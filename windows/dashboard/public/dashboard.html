@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0d0c10">
   <title>daakLOLILE · Tor Relay, PC and Power Control</title>
-  <meta name="description" content="Private Windows Tor relay, Snowflake, hardware monitoring and remote power-mode dashboard with a macOS menu bar companion.">
+  <meta name="description" content="Tor, Snowflake, Folding@home, BOINC, RIPE Atlas, hardware monitoring and private remote power control in one dashboard.">
   <style>
     :root {
       color-scheme: dark;
@@ -130,6 +130,7 @@
     .logs { grid-column: span 8; }
     .network { grid-column: span 4; }
     .snowflake { grid-column: span 12; }
+    .volunteer { grid-column: span 12; }
     .hardware { grid-column: span 12; overflow: hidden; }
     .hardware-layout {
       display: grid;
@@ -214,6 +215,29 @@
       margin-top: 18px;
     }
     .snowflake-grid .mini { min-height: 82px; }
+    .project-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .project {
+      min-height: 142px;
+      padding: 16px;
+      border: 1px solid rgba(255,255,255,.055);
+      border-radius: 13px;
+      background: rgba(255,255,255,.024);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .project-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .project-name { font-size: 14px; font-weight: 680; }
+    .project-state { color: var(--amber); font-family: var(--mono); font-size: 11px; text-align: right; }
+    .project-state.good { color: var(--green); }
+    .project-state.bad { color: var(--red); }
+    .project-detail { color: var(--muted); font-size: 11px; line-height: 1.55; }
+    .project-meta { color: #7f7787; font-family: var(--mono); font-size: 10px; }
     .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 22px; }
     .card h2 { margin: 5px 0 0; font-size: 18px; letter-spacing: -.025em; }
     .quota-number { font-size: 13px; color: var(--muted); font-family: var(--mono); }
@@ -334,9 +358,10 @@
     @media (max-width: 900px) {
       .hero { grid-template-columns: 1fr; }
       .hero-side { border-left: 0; border-top: 1px solid var(--line); padding: 22px 0 0; }
-      .usage, .health, .logs, .network, .snowflake, .processes-card, .storage-card { grid-column: span 12; }
+      .usage, .health, .logs, .network, .snowflake, .volunteer, .processes-card, .storage-card { grid-column: span 12; }
       .hardware-layout { grid-template-columns: 1fr; }
       .snowflake-grid { grid-template-columns: repeat(2, 1fr); }
+      .project-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 700px) {
       header { align-items: flex-start; }
@@ -352,6 +377,7 @@
       .power-modes { grid-template-columns: repeat(2,1fr); }
       .power-schedule { justify-content: flex-start; flex-wrap: wrap; }
       .usage-meta, .field-grid { grid-template-columns: 1fr; }
+      .project-grid { grid-template-columns: 1fr; }
       .card { padding: 17px; }
       .logline { grid-template-columns: 62px 44px 1fr; font-size: 10px; gap: 6px; }
       footer { flex-direction: column; }
@@ -535,6 +561,38 @@
           <div class="mini"><div class="mini-label">Yardım edilen bağlantı</div><div class="mini-value" id="snowflake-connections">—</div></div>
           <div class="mini"><div class="mini-label">Snowflake trafiği</div><div class="mini-value" id="snowflake-traffic">—</div></div>
           <div class="mini"><div class="mini-label">Toplam destek</div><div class="mini-value" id="support-total">—</div></div>
+        </div>
+      </article>
+
+      <article class="card volunteer">
+        <div class="card-head">
+          <div>
+            <div class="card-label">Gönüllü bilgi işlem ve internet ölçümü</div>
+            <h2>Topluma ayrılan kaynaklar</h2>
+          </div>
+          <span class="quota-number" id="project-active">Durum hazırlanıyor</span>
+        </div>
+        <div class="project-grid">
+          <section class="project">
+            <div class="project-top"><span class="project-name">Snowflake</span><span class="project-state" id="project-snowflake-state">Kontrol</span></div>
+            <div class="project-detail" id="project-snowflake-detail">Sansürlü kullanıcıların Tor’a bağlanmasına aracılık eder.</div>
+            <div class="project-meta" id="project-snowflake-meta">Disk paylaşımı yok</div>
+          </section>
+          <section class="project">
+            <div class="project-top"><span class="project-name">Folding@home</span><span class="project-state" id="folding-state">Kontrol</span></div>
+            <div class="project-detail" id="folding-detail">Protein araştırmaları için boşta kalan işlem gücünü kullanır.</div>
+            <div class="project-meta" id="folding-meta">Yalnızca boşta · kullanıcı lolile</div>
+          </section>
+          <section class="project">
+            <div class="project-top"><span class="project-name">BOINC</span><span class="project-state" id="boinc-state">Kontrol</span></div>
+            <div class="project-detail" id="boinc-detail">Bilimsel projelere kontrollü CPU süresi ayırır.</div>
+            <div class="project-meta" id="boinc-meta">%33 CPU · 5 GB disk · GPU kapalı</div>
+          </section>
+          <section class="project">
+            <div class="project-top"><span class="project-name">RIPE Atlas</span><span class="project-state" id="ripe-state">Kontrol</span></div>
+            <div class="project-detail" id="ripe-detail">İnternet erişilebilirliği ve rota ölçümlerine katkı verir.</div>
+            <div class="project-meta" id="ripe-meta">Düşük kaynak · disk paylaşımı yok</div>
+          </section>
         </div>
       </article>
 
@@ -832,6 +890,44 @@
       $("snowflake-traffic").textContent = formatBytes(snowflakeTraffic);
       $("support-total").textContent = formatBytes(Math.max(0, Number(data.support?.total) || total + snowflakeTraffic));
       $("snowflake-label").textContent = snowflakeRunning ? `Aktif · kapasite ${data.snowflake?.capacity || 100}` : "Çalışmıyor";
+
+      const volunteer = data.volunteer || {};
+      const folding = volunteer.folding || {};
+      const boinc = volunteer.boinc || {};
+      const ripe = volunteer.ripeAtlas || {};
+      const stateLabels = {
+        "not-installed": "Kurulum bekliyor",
+        stopped: "Kapalı",
+        ready: "Hazır",
+        working: "Çalışıyor",
+        "account-required": "Hesap bekliyor",
+        "windows-feature-required": "WSL bekliyor",
+        "distro-required": "Linux bekliyor",
+        "probe-install-required": "Prob bekliyor",
+        measuring: "Ölçüm yapıyor",
+      };
+      const paintProjectState = (id, project) => {
+        const element = $(id);
+        element.textContent = stateLabels[project.state] || "Kontrol";
+        element.className = "project-state " + (project.running ? "good" : project.state === "stopped" ? "bad" : "");
+      };
+      paintProjectState("folding-state", folding);
+      paintProjectState("boinc-state", boinc);
+      paintProjectState("ripe-state", ripe);
+      $("project-snowflake-state").textContent = snowflakeRunning ? "Çalışıyor" : "Kapalı";
+      $("project-snowflake-state").className = "project-state " + (snowflakeRunning ? "good" : "bad");
+      $("project-snowflake-detail").textContent = snowflakeRunning
+        ? `${snowflakeConnections.toLocaleString("tr-TR")} bağlantıya yardım edildi; ${formatBytes(snowflakeTraffic)} trafik.`
+        : "Snowflake servisi çalışmıyor.";
+      $("project-snowflake-meta").textContent = `NAT ${natLabels[data.snowflake?.natType] || "kontrol"} · disk paylaşımı yok`;
+      $("folding-detail").textContent = folding.detail || "Folding@home durumu alınamadı.";
+      $("folding-meta").textContent = `Boşta çalışır · ${Number(folding.cpuThreads) || 2} CPU iş parçacığı · kullanıcı ${folding.user || "lolile"}`;
+      $("boinc-detail").textContent = boinc.detail || "BOINC durumu alınamadı.";
+      $("boinc-meta").textContent = `%${Number(boinc.limits?.cpuPercent) || 33} CPU · ${Number(boinc.limits?.diskGB) || 5} GB disk · GPU kapalı`;
+      $("ripe-detail").textContent = ripe.detail || "RIPE Atlas durumu alınamadı.";
+      $("ripe-meta").textContent = "Düşük kaynak · disk paylaşımı yok · 7/24";
+      const activeProjects = Math.max(0, Number(data.support?.activeProjects) || 0);
+      $("project-active").textContent = `${activeProjects}/4 aktif · uzaktan erişim korunuyor`;
 
       const settingsAllowed = data.permissions?.settings === true;
       $("settings").disabled = !settingsAllowed;
