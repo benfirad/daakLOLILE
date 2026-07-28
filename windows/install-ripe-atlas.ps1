@@ -12,6 +12,11 @@ $volunteerRoot = Join-Path $InstallRoot 'volunteer'
 $statusPath = Join-Path $volunteerRoot 'ripe-atlas-install.json'
 $probeKeyPath = Join-Path $volunteerRoot 'ripe-atlas-probe-key.pub'
 New-Item -ItemType Directory -Path $volunteerRoot -Force | Out-Null
+$createdNew = $false
+$installMutex = New-Object System.Threading.Mutex($true, 'Global\daakLOLILERipeInstaller', [ref]$createdNew)
+if (-not $createdNew) {
+    exit 0
+}
 
 function Write-InstallState {
     param(

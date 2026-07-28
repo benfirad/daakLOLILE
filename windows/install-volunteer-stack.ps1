@@ -62,6 +62,9 @@ foreach ($package in $packages) {
                 'ENABLESCREENSAVER=0',
                 'ENABLELAUNCHATLOGON=0',
                 'ENABLEUSEBYALLUSERS=1',
+                'ENABLEPROTECTEDAPPLICATIONEXECUTION3=1',
+                'SETUPTYPE=Service',
+                'ALLUSERS=1',
                 'LAUNCHPROGRAM=0',
                 '/L*v', "`"$msiLog`""
             )

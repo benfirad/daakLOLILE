@@ -27,6 +27,7 @@ $powerTask = 'daakLOLILE Power Manager'
 $memoryTask = 'daakLOLILE Memory Maintenance'
 $volunteerTask = 'daakLOLILE Volunteer Monitor'
 $ripeAtlasTask = 'daakLOLILE RIPE Atlas Installer'
+$postRebootTask = 'daakLOLILE Post-Reboot Finalizer'
 $firewallRule = 'daakLOLILE Dashboard (Tailscale only)'
 $lhmVersion = '0.9.6'
 $lhmUrl = 'https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/download/v0.9.6/LibreHardwareMonitor.zip'
@@ -66,7 +67,9 @@ foreach ($required in @(
     (Join-Path $sourceRoot 'windows\power-manager.ps1'),
     (Join-Path $sourceRoot 'windows\memory-manager.ps1'),
     (Join-Path $sourceRoot 'windows\volunteer-monitor.ps1'),
+    (Join-Path $sourceRoot 'windows\install-volunteer-stack.ps1'),
     (Join-Path $sourceRoot 'windows\install-ripe-atlas.ps1'),
+    (Join-Path $sourceRoot 'windows\post-reboot-finalizer.ps1'),
     (Join-Path $sourceRoot 'windows\fah-control.mjs'),
     (Join-Path $sourceRoot 'windows\widget.ps1'),
     (Join-Path $sourceRoot 'windows\dashboard\server.mjs'),
@@ -84,7 +87,7 @@ $legacyTasks = @(
     'LOLILE Hardware Monitor','LOLILE Dashboard','LOLILE Power Manager',
     'LOLILE Memory Maintenance'
 )
-foreach ($taskName in @($hardwareTask,$dashboardTask,$powerTask,$memoryTask,$volunteerTask,$ripeAtlasTask) + $legacyTasks) {
+foreach ($taskName in @($hardwareTask,$dashboardTask,$powerTask,$memoryTask,$volunteerTask,$ripeAtlasTask,$postRebootTask) + $legacyTasks) {
     Stop-RelayWatchTask -Name $taskName
 }
 foreach ($taskName in $legacyTasks) {
@@ -156,6 +159,12 @@ Write-Utf8Bom `
 Write-Utf8Bom `
     -Source (Join-Path $sourceRoot 'windows\install-ripe-atlas.ps1') `
     -Destination (Join-Path $installRoot 'install-ripe-atlas.ps1')
+Write-Utf8Bom `
+    -Source (Join-Path $sourceRoot 'windows\install-volunteer-stack.ps1') `
+    -Destination (Join-Path $installRoot 'install-volunteer-stack.ps1')
+Write-Utf8Bom `
+    -Source (Join-Path $sourceRoot 'windows\post-reboot-finalizer.ps1') `
+    -Destination (Join-Path $installRoot 'post-reboot-finalizer.ps1')
 Copy-Item `
     -LiteralPath (Join-Path $sourceRoot 'windows\fah-control.mjs') `
     -Destination (Join-Path $installRoot 'fah-control.mjs') `
@@ -254,8 +263,13 @@ $ripeAtlasAction = New-ScheduledTaskAction `
     -Execute $powerShell `
     -Argument "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$installRoot\install-ripe-atlas.ps1`" -InstallRoot `"$installRoot`"" `
     -WorkingDirectory $installRoot
+$postRebootAction = New-ScheduledTaskAction `
+    -Execute $powerShell `
+    -Argument "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$installRoot\post-reboot-finalizer.ps1`" -InstallRoot `"$installRoot`"" `
+    -WorkingDirectory $installRoot
 $startup = New-ScheduledTaskTrigger -AtStartup
 $ripeAtlasStartup = New-ScheduledTaskTrigger -AtStartup -RandomDelay (New-TimeSpan -Minutes 2)
+$postRebootStartup = New-ScheduledTaskTrigger -AtStartup -RandomDelay (New-TimeSpan -Minutes 1)
 $watchdog = New-ScheduledTaskTrigger `
     -Once `
     -At (Get-Date).AddMinutes(1) `
@@ -310,6 +324,14 @@ Register-ScheduledTask `
     -Principal $principal `
     -Settings $settings `
     -Description 'Completes the official RIPE Atlas software probe installation after WSL is ready.' `
+    -Force | Out-Null
+Register-ScheduledTask `
+    -TaskName $postRebootTask `
+    -Action $postRebootAction `
+    -Trigger $postRebootStartup `
+    -Principal $principal `
+    -Settings $settings `
+    -Description 'Completes BOINC service mode and RIPE Atlas after a required Windows restart.' `
     -Force | Out-Null
 
 foreach ($oldRule in @(
