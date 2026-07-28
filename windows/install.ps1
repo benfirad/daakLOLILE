@@ -345,8 +345,11 @@ $icacls = Join-Path $env:SystemRoot 'System32\icacls.exe'
     '/inheritance:r' `
     '/grant:r' `
     '*S-1-5-18:(OI)(CI)F' `
+    '*S-1-5-18:F' `
     '*S-1-5-32-544:(OI)(CI)F' `
+    '*S-1-5-32-544:F' `
     '*S-1-5-32-545:(OI)(CI)RX' `
+    '*S-1-5-32-545:RX' `
     '/T' `
     '/C' | Out-Null
 if ($LASTEXITCODE -ne 0) {

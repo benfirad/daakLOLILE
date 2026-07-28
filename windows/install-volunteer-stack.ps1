@@ -44,24 +44,30 @@ foreach ($package in $packages) {
         if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch [regex]::Escape($package.Signer)) {
             throw "$($package.Name) digital signature verification failed."
         }
-        $installer = Start-Process -FilePath $package.Path -ArgumentList '/S' -PassThru -Wait
-        if ($package.Name -eq 'BOINC' -and -not (Test-Path -LiteralPath $package.InstalledPath)) {
-            $extractedMsi = Get-ChildItem 'C:\Windows\Downloaded Installations\BOINC' `
+        $installer = $null
+        $extractedMsi = if ($package.Name -eq 'BOINC') {
+            Get-ChildItem 'C:\Windows\Downloaded Installations\BOINC' `
                 -Filter 'BOINC.msi' -File -Recurse -ErrorAction SilentlyContinue |
                 Sort-Object LastWriteTime -Descending |
                 Select-Object -First 1
-            if ($extractedMsi) {
-                $msiArguments = @(
-                    '/i', "`"$($extractedMsi.FullName)`"",
-                    '/qn', '/norestart',
-                    'AgreeToLicense=Yes',
-                    'ENABLESCREENSAVER=0',
-                    'ENABLELAUNCHATLOGON=0',
-                    'ENABLEUSEBYALLUSERS=1',
-                    'LAUNCHPROGRAM=0'
-                )
-                $installer = Start-Process -FilePath 'msiexec.exe' -ArgumentList $msiArguments -PassThru -Wait
-            }
+        } else {
+            $null
+        }
+        if ($extractedMsi) {
+            $msiLog = Join-Path $downloadRoot 'boinc-msi.log'
+            $msiArguments = @(
+                '/i', "`"$($extractedMsi.FullName)`"",
+                '/qn', '/norestart',
+                'AgreeToLicense=Yes',
+                'ENABLESCREENSAVER=0',
+                'ENABLELAUNCHATLOGON=0',
+                'ENABLEUSEBYALLUSERS=1',
+                'LAUNCHPROGRAM=0',
+                '/L*v', "`"$msiLog`""
+            )
+            $installer = Start-Process -FilePath 'msiexec.exe' -ArgumentList $msiArguments -PassThru -Wait
+        } else {
+            $installer = Start-Process -FilePath $package.Path -ArgumentList '/S' -PassThru -Wait
         }
         if ($installer.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $package.InstalledPath)) {
             throw "$($package.Name) installation failed with exit code $($installer.ExitCode)."
