@@ -56,6 +56,17 @@ try {
         exit 3010
     }
 
+    $virtualizationEnabled = [bool](
+        Get-CimInstance Win32_Processor |
+            Select-Object -First 1 -ExpandProperty VirtualizationFirmwareEnabled
+    )
+    if (-not $virtualizationEnabled) {
+        Write-InstallState `
+            -State 'firmware-virtualization-required' `
+            -Detail 'RIPE Atlas duraklatıldı. BIOS/UEFI içinde AMD SVM etkinleştirilmeden WSL2 güvenle çalıştırılamıyor.'
+        exit 0
+    }
+
     $distroNames = @(& wsl.exe --list --quiet 2>$null) |
         ForEach-Object { (([string]$_) -replace [char]0, '').Trim() } |
         Where-Object { $_ }
@@ -63,16 +74,8 @@ try {
         Write-InstallState `
             -State 'installing-distro' `
             -Detail 'Resmi Debian WSL ortamı kuruluyor.'
-        # Bypass Microsoft Store delivery. On hosts where firmware virtualization
-        # is disabled, use WSL1 so the probe does not depend on a virtual machine.
-        $virtualizationEnabled = [bool](
-            Get-CimInstance Win32_Processor |
-                Select-Object -First 1 -ExpandProperty VirtualizationFirmwareEnabled
-        )
+        # Bypass Microsoft Store delivery while keeping the official WSL source.
         $installArguments = @('--install','-d',$Distro,'--no-launch','--web-download')
-        if (-not $virtualizationEnabled) {
-            $installArguments += @('--version','1','--enable-wsl1')
-        }
         & wsl.exe @installArguments
         if ($LASTEXITCODE -notin @(0,3010)) {
             if (Test-RebootPending) {

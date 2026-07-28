@@ -159,7 +159,9 @@ function Get-RipeAtlasStatus {
         & wsl.exe -d $distro -- sh -lc 'pgrep -f ripe-atlas >/dev/null' 2>$null
         $running = $LASTEXITCODE -eq 0
     }
-    $stateName = if ($installState.state -eq 'reboot-required' -or $installState.rebootRequired -eq $true) {
+    $stateName = if ($installState.state -eq 'firmware-virtualization-required') {
+        'firmware-virtualization-required'
+    } elseif ($installState.state -eq 'reboot-required' -or $installState.rebootRequired -eq $true) {
         'reboot-required'
     } elseif ($installState.state -eq 'error') {
         'error'
@@ -187,6 +189,7 @@ function Get-RipeAtlasStatus {
         registrationUrl = 'https://atlas.ripe.net/apply/swprobe/'
         publicKeyPath = $probeKeyPath
         detail = switch ($stateName) {
+            'firmware-virtualization-required' { if ($installState.detail) { [string]$installState.detail } else { 'RIPE Atlas için BIOS/UEFI içinde donanım sanallaştırması etkinleştirilmeli.' } }
             'reboot-required' { if ($installState.detail) { [string]$installState.detail } else { 'Kurulum güvenli bir Windows yeniden başlatması bekliyor.' } }
             'error' { if ($installState.detail) { [string]$installState.detail } else { 'RIPE Atlas kurulumu hata verdi.' } }
             'windows-feature-required' { 'WSL altyapısı kurulmayı ve yeniden başlatmayı bekliyor.' }

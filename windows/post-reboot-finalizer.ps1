@@ -52,6 +52,7 @@ try {
         $boinc.StartType -eq 'Automatic' -and
         $ripeState.state -eq 'account-required'
     )
+    $terminalState = $complete -or $ripeState.state -eq 'firmware-virtualization-required'
     [ordered]@{
         ok = $complete
         completedAt = [DateTime]::UtcNow.ToString('o')
@@ -64,7 +65,7 @@ try {
     } | ConvertTo-Json -Depth 4 |
         Set-Content -LiteralPath $resultPath -Encoding UTF8
 
-    if ($complete) {
+    if ($terminalState) {
         Unregister-ScheduledTask -TaskName 'daakLOLILE Post-Reboot Finalizer' -Confirm:$false -ErrorAction SilentlyContinue
     }
 } catch {
