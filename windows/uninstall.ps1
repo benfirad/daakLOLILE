@@ -43,9 +43,11 @@ Get-CimInstance Win32_Process |
     } |
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
-$shortcut = Join-Path ([Environment]::GetFolderPath('Startup')) 'daakLOLILE Widget.lnk'
-if (Test-Path -LiteralPath $shortcut) {
-    Remove-Item -LiteralPath $shortcut -Force
+foreach ($shortcutName in @('daakLOLILE Widget.lnk','lolile Tor Widget.lnk')) {
+    $shortcut = Join-Path ([Environment]::GetFolderPath('Startup')) $shortcutName
+    if (Test-Path -LiteralPath $shortcut) {
+        Remove-Item -LiteralPath $shortcut -Force
+    }
 }
 
 if (-not $KeepData -and (Test-Path -LiteralPath $installRoot)) {

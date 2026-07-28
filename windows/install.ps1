@@ -94,6 +94,20 @@ foreach ($taskName in $legacyTasks) {
     Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue |
         Unregister-ScheduledTask -Confirm:$false
 }
+$legacyTaskPathPattern = '(?i)C:\\ProgramData\\(?:RelayWatch|LOLILE|TorRelayDashboard)(?:\\|$)'
+Get-ScheduledTask -ErrorAction SilentlyContinue |
+    Where-Object {
+        $_.TaskName -notlike 'daakLOLILE*' -and
+        (
+            @($_.Actions | ForEach-Object {
+                "$($_.Execute) $($_.Arguments) $($_.WorkingDirectory)"
+            }) -join ' '
+        ) -match $legacyTaskPathPattern
+    } |
+    ForEach-Object {
+        Stop-ScheduledTask -InputObject $_ -ErrorAction SilentlyContinue
+        Unregister-ScheduledTask -InputObject $_ -Confirm:$false
+    }
 
 Get-NetTCPConnection -LocalPort $DashboardPort -State Listen -ErrorAction SilentlyContinue |
     ForEach-Object {
@@ -390,7 +404,12 @@ WScript.Sleep 8000
 CreateObject("Wscript.Shell").Run "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""$installRoot\widget.ps1""", 0, False
 "@ | Set-Content -LiteralPath $launcher -Encoding ASCII
     $startupFolder = [Environment]::GetFolderPath('Startup')
-    foreach ($legacyShortcut in @('LOLILE Widget.lnk','RelayWatch Widget.lnk','benfirad Tor Paneli.lnk')) {
+    foreach ($legacyShortcut in @(
+        'LOLILE Widget.lnk',
+        'RelayWatch Widget.lnk',
+        'benfirad Tor Paneli.lnk',
+        'lolile Tor Widget.lnk'
+    )) {
         Remove-Item -LiteralPath (Join-Path $startupFolder $legacyShortcut) -Force -ErrorAction SilentlyContinue
     }
     $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $startupFolder 'daakLOLILE Widget.lnk'))
@@ -406,13 +425,29 @@ $deadline = (Get-Date).AddSeconds(40)
 do {
     Start-Sleep -Milliseconds 750
     $status = $null
+    $dashboardCurrent = $false
     try {
         $status = Invoke-RestMethod -Uri "http://127.0.0.1:$DashboardPort/api/status" -TimeoutSec 5
+        $dashboardPage = Invoke-WebRequest -Uri "http://127.0.0.1:$DashboardPort/" -UseBasicParsing -TimeoutSec 5
+        $dashboardCurrent = (
+            $dashboardPage.StatusCode -eq 200 -and
+            $dashboardPage.Content -match '<title>daakLOLILE'
+        )
     }
     catch {}
-} while (($null -eq $status -or $status.hardware.available -ne $true) -and (Get-Date) -lt $deadline)
+} while ((
+    $null -eq $status -or
+    $status.hardware.available -ne $true -or
+    $null -eq $status.volunteer -or
+    -not $dashboardCurrent
+) -and (Get-Date) -lt $deadline)
 
-if ($null -eq $status -or $status.hardware.available -ne $true) {
+if (
+    $null -eq $status -or
+    $status.hardware.available -ne $true -or
+    $null -eq $status.volunteer -or
+    -not $dashboardCurrent
+) {
     throw "daakLOLILE tasks were installed, but the local API did not become healthy on port $DashboardPort."
 }
 

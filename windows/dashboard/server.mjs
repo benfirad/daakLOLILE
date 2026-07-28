@@ -6,8 +6,17 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
-const root = process.env.RELAYWATCH_PUBLIC_ROOT || "C:\\ProgramData\\daakLOLILE\\dashboard\\public";
-const appRoot = process.env.RELAYWATCH_ROOT || "C:\\ProgramData\\daakLOLILE";
+const canonicalAppRoot = "C:\\ProgramData\\daakLOLILE";
+const requestedAppRoot = process.env.RELAYWATCH_ROOT || canonicalAppRoot;
+const appRoot = normalize(requestedAppRoot).toLowerCase() === normalize(canonicalAppRoot).toLowerCase()
+  ? requestedAppRoot
+  : canonicalAppRoot;
+const canonicalPublicRoot = join(appRoot, "dashboard", "public");
+const requestedPublicRoot = process.env.RELAYWATCH_PUBLIC_ROOT || canonicalPublicRoot;
+const publicRelative = relative(normalize(appRoot), normalize(requestedPublicRoot));
+const root = publicRelative.startsWith("..") || publicRelative.includes(":")
+  ? canonicalPublicRoot
+  : requestedPublicRoot;
 const torRoot = process.env.TOR_ROOT || "C:\\ProgramData\\TorRelay";
 const torrcPath = join(torRoot, "torrc");
 const torExe = join(torRoot, "tor", "tor.exe");
