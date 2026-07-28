@@ -33,6 +33,7 @@ const memoryManagerPath = process.env.daakLOLILE_MEMORY_MANAGER || join(appRoot,
 const memoryStatusPath = process.env.daakLOLILE_MEMORY_STATUS || join(appRoot, "memory-status.json");
 const volunteerStatusPath = process.env.daakLOLILE_VOLUNTEER_STATUS || join(appRoot, "volunteer-status.json");
 const boincCmdPath = process.env.daakLOLILE_BOINC_CMD || "C:\\Program Files\\BOINC\\boinccmd.exe";
+const boincHeadlessPath = process.env.daakLOLILE_BOINC_HEADLESS || join(appRoot, "boinc-headless.ps1");
 const consoleAuditPath = join(appRoot, "data", "console-audit.jsonl");
 const port = Number(process.env.RELAYWATCH_PORT || 17657);
 const orPort = Number(process.env.TOR_OR_PORT || 9001);
@@ -54,6 +55,7 @@ const allowedConsoleActions = Object.freeze({
   "boinc-resume": { label: "Hesaplamayı sürdür", risk: "safe" },
   "boinc-network": { label: "Ağ bağlantısını yeniden dene", risk: "safe" },
   "boinc-reload-config": { label: "BOINC ayarlarını yeniden oku", risk: "safe" },
+  "boinc-headless": { label: "BOINC Manager'ı arka plana kilitle", risk: "safe" },
   "boinc-restart": { label: "BOINC servisini yeniden başlat", risk: "confirm" },
   "system-health": { label: "Korunan servisleri denetle", risk: "read" },
 });
@@ -246,6 +248,12 @@ async function executeConsoleAction(action, remoteAddress) {
     } else if (action === "boinc-reload-config") {
       output = await runConsoleProgram(boincCmdPath, ["--read_cc_config"]);
       output = `${output || "BOINC yapılandırması yeniden okundu."}\n\n${await boincSnapshot(false)}`;
+    } else if (action === "boinc-headless") {
+      output = await runConsoleProgram("powershell.exe", [
+        "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+        "-File", boincHeadlessPath, "-Action", "Enforce", "-InstallRoot", appRoot,
+      ]);
+      output = `${output}\n\n${await boincSnapshot(false)}`;
     } else if (action === "boinc-restart") {
       const command = [
         "Restart-Service -Name BOINC -Force -ErrorAction Stop",

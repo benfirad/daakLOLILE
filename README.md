@@ -118,6 +118,7 @@ Run the official client installer from an elevated PowerShell:
 
 - Folding@home runs as `lolile`, uses two CPU threads, can use a supported GPU, and is configured for idle use.
 - BOINC runs as a Windows service with conservative limits: 33% CPU, 25–40% RAM, 5 GB disk, and no GPU. A project account still has to be connected by its owner.
+- BOINC Manager stays hidden. The `daakLOLILE BOINC Headless Guard` removes Manager autostart entries, blocks interactive execution of `boincmgr.exe`, and rechecks the policy at startup, logon, and every five minutes. BOINC remains controllable from the allow-listed private dashboard console. The daakLOLILE uninstaller restores Manager execution permissions.
 - RIPE Atlas is installed from RIPE NCC's official Debian repository inside WSL after the required reboot. Its public key must be registered by the owner at [RIPE Atlas software probe registration](https://atlas.ripe.net/apply/swprobe/).
 
 The RIPE Atlas setup verifies the repository package against the official release checksum, does not require an inbound router port, disables interface traffic reporting, and does not share files or disk space. Account passwords and API keys are never stored in daakLOLILE.

@@ -69,6 +69,7 @@ foreach ($required in @(
     'allowedConsoleActions',
     'timingSafeEqual',
     'console-audit.jsonl',
+    'boinc-headless.ps1',
     'power-manager.ps1',
     'memory-manager.ps1',
     'volunteer-status.json',
@@ -98,6 +99,7 @@ foreach ($required in @(
     'Güvenli BOINC konsolu',
     'data-console-action="boinc-sync"',
     'data-console-action="boinc-pause"',
+    'data-console-action="boinc-headless"',
     'data-console-action="boinc-restart"',
     'X-daakLOLILE-Token'
 )) {

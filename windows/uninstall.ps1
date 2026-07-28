@@ -11,6 +11,7 @@ $hardwareTask = 'daakLOLILE Hardware Monitor'
 $dashboardTask = 'daakLOLILE Dashboard'
 $powerTask = 'daakLOLILE Power Manager'
 $memoryTask = 'daakLOLILE Memory Maintenance'
+$boincHeadlessTask = 'daakLOLILE BOINC Headless Guard'
 $firewallRule = 'daakLOLILE Dashboard (Tailscale only)'
 
 $answer = Read-Host 'Remove daakLOLILE tasks, firewall rule and installed files? Type REMOVE'
@@ -27,7 +28,7 @@ if (Test-Path -LiteralPath (Join-Path $installRoot 'power-manager.ps1')) {
         -InstallRoot $installRoot | Out-Null
 }
 
-foreach ($task in @($hardwareTask,$dashboardTask,$powerTask,$memoryTask)) {
+foreach ($task in @($hardwareTask,$dashboardTask,$powerTask,$memoryTask,$boincHeadlessTask)) {
     Get-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue |
         Stop-ScheduledTask -ErrorAction SilentlyContinue
     Unregister-ScheduledTask -TaskName $task -Confirm:$false -ErrorAction SilentlyContinue
@@ -48,6 +49,14 @@ foreach ($shortcutName in @('daakLOLILE Widget.lnk','lolile Tor Widget.lnk')) {
     if (Test-Path -LiteralPath $shortcut) {
         Remove-Item -LiteralPath $shortcut -Force
     }
+}
+
+if (Test-Path -LiteralPath (Join-Path $installRoot 'boinc-headless.ps1')) {
+    & (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe') `
+        -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+        -File (Join-Path $installRoot 'boinc-headless.ps1') `
+        -Action Restore `
+        -InstallRoot $installRoot | Out-Null
 }
 
 if (-not $KeepData -and (Test-Path -LiteralPath $installRoot)) {

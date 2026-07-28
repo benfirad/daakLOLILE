@@ -26,6 +26,7 @@ $dashboardTask = 'daakLOLILE Dashboard'
 $powerTask = 'daakLOLILE Power Manager'
 $memoryTask = 'daakLOLILE Memory Maintenance'
 $volunteerTask = 'daakLOLILE Volunteer Monitor'
+$boincHeadlessTask = 'daakLOLILE BOINC Headless Guard'
 $ripeAtlasTask = 'daakLOLILE RIPE Atlas Installer'
 $postRebootTask = 'daakLOLILE Post-Reboot Finalizer'
 $firewallRule = 'daakLOLILE Dashboard (Tailscale only)'
@@ -67,6 +68,7 @@ foreach ($required in @(
     (Join-Path $sourceRoot 'windows\power-manager.ps1'),
     (Join-Path $sourceRoot 'windows\memory-manager.ps1'),
     (Join-Path $sourceRoot 'windows\volunteer-monitor.ps1'),
+    (Join-Path $sourceRoot 'windows\boinc-headless.ps1'),
     (Join-Path $sourceRoot 'windows\install-volunteer-stack.ps1'),
     (Join-Path $sourceRoot 'windows\install-ripe-atlas.ps1'),
     (Join-Path $sourceRoot 'windows\post-reboot-finalizer.ps1'),
@@ -87,7 +89,7 @@ $legacyTasks = @(
     'LOLILE Hardware Monitor','LOLILE Dashboard','LOLILE Power Manager',
     'LOLILE Memory Maintenance'
 )
-foreach ($taskName in @($hardwareTask,$dashboardTask,$powerTask,$memoryTask,$volunteerTask,$ripeAtlasTask,$postRebootTask) + $legacyTasks) {
+foreach ($taskName in @($hardwareTask,$dashboardTask,$powerTask,$memoryTask,$volunteerTask,$boincHeadlessTask,$ripeAtlasTask,$postRebootTask) + $legacyTasks) {
     Stop-RelayWatchTask -Name $taskName
 }
 foreach ($taskName in $legacyTasks) {
@@ -170,6 +172,9 @@ Write-Utf8Bom `
 Write-Utf8Bom `
     -Source (Join-Path $sourceRoot 'windows\volunteer-monitor.ps1') `
     -Destination (Join-Path $installRoot 'volunteer-monitor.ps1')
+Write-Utf8Bom `
+    -Source (Join-Path $sourceRoot 'windows\boinc-headless.ps1') `
+    -Destination (Join-Path $installRoot 'boinc-headless.ps1')
 Write-Utf8Bom `
     -Source (Join-Path $sourceRoot 'windows\install-ripe-atlas.ps1') `
     -Destination (Join-Path $installRoot 'install-ripe-atlas.ps1')
@@ -273,6 +278,10 @@ $volunteerAction = New-ScheduledTaskAction `
     -Execute $powerShell `
     -Argument "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$installRoot\volunteer-monitor.ps1`" -InstallRoot `"$installRoot`"" `
     -WorkingDirectory $installRoot
+$boincHeadlessAction = New-ScheduledTaskAction `
+    -Execute $powerShell `
+    -Argument "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$installRoot\boinc-headless.ps1`" -Action Enforce -InstallRoot `"$installRoot`"" `
+    -WorkingDirectory $installRoot
 $ripeAtlasAction = New-ScheduledTaskAction `
     -Execute $powerShell `
     -Argument "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$installRoot\install-ripe-atlas.ps1`" -InstallRoot `"$installRoot`"" `
@@ -282,6 +291,7 @@ $postRebootAction = New-ScheduledTaskAction `
     -Argument "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$installRoot\post-reboot-finalizer.ps1`" -InstallRoot `"$installRoot`"" `
     -WorkingDirectory $installRoot
 $startup = New-ScheduledTaskTrigger -AtStartup
+$logon = New-ScheduledTaskTrigger -AtLogOn
 $ripeAtlasStartup = New-ScheduledTaskTrigger -AtStartup -RandomDelay (New-TimeSpan -Minutes 2)
 $postRebootStartup = New-ScheduledTaskTrigger -AtStartup -RandomDelay (New-TimeSpan -Minutes 1)
 $watchdog = New-ScheduledTaskTrigger `
@@ -330,6 +340,14 @@ Register-ScheduledTask `
     -Principal $principal `
     -Settings $settings `
     -Description 'daakLOLILE Folding@home, BOINC and RIPE Atlas monitor. Runs without user logon.' `
+    -Force | Out-Null
+Register-ScheduledTask `
+    -TaskName $boincHeadlessTask `
+    -Action $boincHeadlessAction `
+    -Trigger @($startup,$logon,$watchdog) `
+    -Principal $principal `
+    -Settings $settings `
+    -Description 'Keeps BOINC Manager hidden while the BOINC service remains available to the private dashboard.' `
     -Force | Out-Null
 Register-ScheduledTask `
     -TaskName $ripeAtlasTask `
@@ -396,6 +414,7 @@ Start-ScheduledTask -TaskName $hardwareTask
 Start-ScheduledTask -TaskName $dashboardTask
 Start-ScheduledTask -TaskName $powerTask
 Start-ScheduledTask -TaskName $volunteerTask
+Start-ScheduledTask -TaskName $boincHeadlessTask
 
 if ($InstallWidget) {
     $launcher = Join-Path $installRoot 'launch-widget.vbs'

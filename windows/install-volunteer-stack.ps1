@@ -112,6 +112,11 @@ if ($boincService) {
     }
 }
 
+$headlessScript = 'C:\ProgramData\daakLOLILE\boinc-headless.ps1'
+if (Test-Path -LiteralPath $headlessScript) {
+    & $headlessScript -Action Enforce -InstallRoot 'C:\ProgramData\daakLOLILE' | Out-Null
+}
+
 if ($EnableRipeAtlasPrerequisites) {
     Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -All -NoRestart | Out-Null
     Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -All -NoRestart | Out-Null
