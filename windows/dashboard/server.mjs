@@ -28,6 +28,7 @@ const configuredServiceName = String(process.env.TOR_SERVICE_NAME || "tor");
 const torServiceName = /^[A-Za-z0-9_.-]+$/.test(configuredServiceName) ? configuredServiceName : "tor";
 let onionooCache = { checkedAt: 0, found: false, running: false, flags: [] };
 let controlCache = { checkedAt: 0, value: null, pending: null };
+const controlCacheLifetimeMs = 60000;
 let settingsBusy = false;
 const hardwareHistory = [];
 let lastHardwareSample = "";
@@ -190,7 +191,7 @@ async function queryControlInfo() {
 }
 
 async function controlInfo() {
-  if (controlCache.value && Date.now() - controlCache.checkedAt < 9000) {
+  if (controlCache.value && Date.now() - controlCache.checkedAt < controlCacheLifetimeMs) {
     return controlCache.value;
   }
   if (controlCache.pending) return controlCache.pending;
@@ -529,6 +530,34 @@ function friendlyTorLogs(rawLog) {
   return deduplicated.reverse();
 }
 
+function latestReachability(rawLog, family) {
+  const lines = rawLog.split(/\r?\n/);
+  const isIPv6 = family === 6;
+  let lastSuccess = -1;
+  let lastFailure = -1;
+  let lastCheck = -1;
+
+  lines.forEach((line, index) => {
+    if (isIPv6
+      ? /Self-testing indicates your (?:IPv6 )?ORPort \[[0-9a-f:]+\]:\d+ is reachable from the outside/i.test(line)
+      : /Self-testing indicates your (?:IPv4 )?ORPort (?!\[)[^\s:]+:\d+ is reachable from the outside/i.test(line)) {
+      lastSuccess = index;
+    }
+    if (/not managed to confirm reachability for its ORPort/i.test(line)) {
+      const failedIPv6 = /\[[0-9a-f:]+\]:\d+/i.test(line);
+      if (failedIPv6 === isIPv6) lastFailure = index;
+    }
+    if (isIPv6 ? /Now checking whether IPv6 ORPort/i.test(line) : /Now checking whether IPv4 ORPort/i.test(line)) {
+      lastCheck = index;
+    }
+  });
+
+  return {
+    reachable: lastSuccess > lastFailure && lastSuccess > lastCheck,
+    checking: lastCheck > lastSuccess && lastCheck > lastFailure,
+  };
+}
+
 async function maintainMemory() {
   await execFileAsync("powershell.exe", [
     "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
@@ -565,9 +594,11 @@ async function buildStatus(settingsAllowed = false, powerAllowed = false) {
   const logLines = friendlyTorLogs(log);
   const bootstrapMatches = [...log.matchAll(/Bootstrapped\s+(\d+)%/g)].map(match => Number(match[1]));
   const bootstrap = bootstrapMatches.at(-1) || 0;
-  const ipv4Reachable = /Self-testing indicates your (?:IPv4 )?ORPort (?!\[)[^\r\n]* is reachable from the outside/i.test(log);
-  const ipv6Reachable = /Self-testing indicates your (?:IPv6 )?ORPort \[[0-9a-f:]+\]:\d+ is reachable from the outside/i.test(log);
-  const checking = /Now checking whether .*ORPort/i.test(log) && !ipv4Reachable && !ipv6Reachable;
+  const ipv4Reachability = latestReachability(log, 4);
+  const ipv6Reachability = latestReachability(log, 6);
+  const ipv4Reachable = ipv4Reachability.reachable;
+  const ipv6Reachable = ipv6Reachability.reachable;
+  const checking = ipv4Reachability.checking || ipv6Reachability.checking;
   const rateBytes = parseByteRate(configValue(config, "RelayBandwidthRate"));
   const burstBytes = parseByteRate(configValue(config, "RelayBandwidthBurst"));
   const total = traffic.read + traffic.write;

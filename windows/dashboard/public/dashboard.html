@@ -673,8 +673,11 @@
       return value.toFixed(digits) + " " + units[index];
     };
     const formatRate = (bytes) => `${formatBytes(Math.max(0, Number(bytes) || 0))}/sn`;
-    const formatTemperature = (value) => Number.isFinite(Number(value)) ? `${Number(value).toFixed(0)}°C` : "Sensör yok";
-    const formatKWh = (value) => Number.isFinite(Number(value)) ? `${Number(value).toFixed(Number(value) < 1 ? 3 : 2)} kWh` : "—";
+    const hasNumber = (value) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
+    const formatTemperature = (value) => hasNumber(value) ? `${Number(value).toFixed(0)}°C` : "Sensör yok";
+    const formatKWh = (value) => hasNumber(value) ? `${Number(value).toFixed(Number(value) < 1 ? 3 : 2)} kWh` : "—";
+    const formatPower = (value, estimated = false) =>
+      hasNumber(value) ? `${Number(value).toFixed(0)} W${estimated ? " tah." : ""}` : "Sensör yok";
     const formatUptime = (seconds) => {
       const total = Math.max(0, Number(seconds) || 0);
       const days = Math.floor(total / 86400);
@@ -725,9 +728,9 @@
         setMeter("memory-meter", memoryLoad);
         setMeter("disk-meter", diskLoad);
         $("cpu-temp").textContent = `Sıcaklık ${formatTemperature(hardware.cpu?.temperatureC)}`;
-        $("cpu-power").textContent = `${Number(hardware.cpu?.powerWatts || 0).toFixed(0)} W ${hardware.cpu?.powerSource === "sensor" ? "" : "tah."}`.trim();
+        $("cpu-power").textContent = formatPower(hardware.cpu?.powerWatts, hardware.cpu?.powerSource !== "sensor");
         $("gpu-temp").textContent = `Sıcaklık ${formatTemperature(hardware.gpu?.temperatureC)}`;
-        $("gpu-power").textContent = `${Number(hardware.gpu?.powerWatts || 0).toFixed(0)} W ${hardware.gpu?.powerSource === "sensor" ? "" : "tah."}`.trim();
+        $("gpu-power").textContent = formatPower(hardware.gpu?.powerWatts, hardware.gpu?.powerSource !== "sensor");
         $("memory-used").textContent = `${formatBytes(hardware.memory?.usedBytes)} kullanılıyor`;
         $("memory-total").textContent = formatBytes(hardware.memory?.totalBytes);
         $("disk-read").textContent = `↓ ${formatRate(hardware.disk?.readBytesPerSecond)}`;
@@ -822,7 +825,7 @@
       $("main-subtitle").textContent = relayListed
         ? "Middle relay consensus içinde ve Tor trafiği aktarıyor."
         : snowflakeRunning
-          ? "Middle relay CGNAT nedeniyle consensus dışında; Snowflake sansürlü kullanıcıların Tor’a bağlanmasına yardım ediyor."
+          ? "Middle relay IPv4 dış erişimi doğrulanamadığı için consensus dışında; Snowflake sansürlü kullanıcıların Tor’a bağlanmasına yardım ediyor."
           : online
             ? "Tor servisi hazır ancak henüz consensus içinde değil."
             : "Aşağıdaki sağlık kontrollerinde sorun görünen satırı incele.";
@@ -903,8 +906,10 @@
         "account-required": "Hesap bekliyor",
         "windows-feature-required": "WSL bekliyor",
         "distro-required": "Linux bekliyor",
+        "reboot-required": "Yeniden başlatma bekliyor",
         "probe-install-required": "Prob bekliyor",
         measuring: "Ölçüm yapıyor",
+        error: "Hata",
       };
       const paintProjectState = (id, project) => {
         const element = $(id);
@@ -954,7 +959,7 @@
       }).reverse().map(line => line
         .replace(
           /Your server has not managed to confirm reachability[\s\S]*$/i,
-          "IPv4 ORPort CGNAT nedeniyle dışarıdan doğrulanamadı; middle relay descriptor yayımlayamıyor."
+          "IPv4 ORPort dışarıdan doğrulanamadı; yönlendirici WAN/NAT ayarını kontrol etmek gerekiyor."
         )
         .replace(
           /Now checking whether IPv4 ORPort[\s\S]*$/i,

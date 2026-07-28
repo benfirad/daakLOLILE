@@ -362,9 +362,11 @@ private final class RelayMonitor: ObservableObject {
         case "account-required": return "Hesap bekliyor"
         case "windows-feature-required": return "WSL bekliyor"
         case "distro-required": return "Linux bekliyor"
+        case "reboot-required": return "Yeniden başlatma bekliyor"
         case "probe-install-required": return "Prob bekliyor"
         case "not-installed": return "Kurulum bekliyor"
         case "stopped": return "Kapalı"
+        case "error": return "Hata"
         default: return "Hazırlanıyor"
         }
     }

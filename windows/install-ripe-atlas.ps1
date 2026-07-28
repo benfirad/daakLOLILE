@@ -37,6 +37,14 @@ function Write-InstallState {
         Set-Content -LiteralPath $statusPath -Encoding UTF8
 }
 
+function Test-RebootPending {
+    [bool](
+        (Test-Path -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending') -or
+        (Test-Path -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired') -or
+        (Get-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager' -Name PendingFileRenameOperations -ErrorAction SilentlyContinue)
+    )
+}
+
 try {
     $wslFeature = (Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux).State
     $vmFeature = (Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform).State
@@ -57,6 +65,13 @@ try {
             -Detail 'Resmi Debian WSL ortamı kuruluyor.'
         & wsl.exe --install -d $Distro --no-launch
         if ($LASTEXITCODE -notin @(0,3010)) {
+            if (Test-RebootPending) {
+                Write-InstallState `
+                    -State 'reboot-required' `
+                    -Detail 'Windows değişiklikleri hazır; Debian ve RIPE Atlas kurulumu yeniden başlatmadan sonra otomatik tamamlanacak.' `
+                    -RebootRequired $true
+                exit 3010
+            }
             throw "Debian WSL installation failed with exit code $LASTEXITCODE."
         }
     }
