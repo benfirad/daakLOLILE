@@ -26,6 +26,7 @@ $dashboardTask = 'daakLOLILE Dashboard'
 $powerTask = 'daakLOLILE Power Manager'
 $memoryTask = 'daakLOLILE Memory Maintenance'
 $volunteerTask = 'daakLOLILE Volunteer Monitor'
+$ripeAtlasTask = 'daakLOLILE RIPE Atlas Installer'
 $firewallRule = 'daakLOLILE Dashboard (Tailscale only)'
 $lhmVersion = '0.9.6'
 $lhmUrl = 'https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/download/v0.9.6/LibreHardwareMonitor.zip'
@@ -65,6 +66,7 @@ foreach ($required in @(
     (Join-Path $sourceRoot 'windows\power-manager.ps1'),
     (Join-Path $sourceRoot 'windows\memory-manager.ps1'),
     (Join-Path $sourceRoot 'windows\volunteer-monitor.ps1'),
+    (Join-Path $sourceRoot 'windows\install-ripe-atlas.ps1'),
     (Join-Path $sourceRoot 'windows\fah-control.mjs'),
     (Join-Path $sourceRoot 'windows\widget.ps1'),
     (Join-Path $sourceRoot 'windows\dashboard\server.mjs'),
@@ -82,7 +84,7 @@ $legacyTasks = @(
     'LOLILE Hardware Monitor','LOLILE Dashboard','LOLILE Power Manager',
     'LOLILE Memory Maintenance'
 )
-foreach ($taskName in @($hardwareTask,$dashboardTask,$powerTask,$memoryTask,$volunteerTask) + $legacyTasks) {
+foreach ($taskName in @($hardwareTask,$dashboardTask,$powerTask,$memoryTask,$volunteerTask,$ripeAtlasTask) + $legacyTasks) {
     Stop-RelayWatchTask -Name $taskName
 }
 foreach ($taskName in $legacyTasks) {
@@ -151,6 +153,9 @@ Write-Utf8Bom `
 Write-Utf8Bom `
     -Source (Join-Path $sourceRoot 'windows\volunteer-monitor.ps1') `
     -Destination (Join-Path $installRoot 'volunteer-monitor.ps1')
+Write-Utf8Bom `
+    -Source (Join-Path $sourceRoot 'windows\install-ripe-atlas.ps1') `
+    -Destination (Join-Path $installRoot 'install-ripe-atlas.ps1')
 Copy-Item `
     -LiteralPath (Join-Path $sourceRoot 'windows\fah-control.mjs') `
     -Destination (Join-Path $installRoot 'fah-control.mjs') `
@@ -245,7 +250,12 @@ $volunteerAction = New-ScheduledTaskAction `
     -Execute $powerShell `
     -Argument "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$installRoot\volunteer-monitor.ps1`" -InstallRoot `"$installRoot`"" `
     -WorkingDirectory $installRoot
+$ripeAtlasAction = New-ScheduledTaskAction `
+    -Execute $powerShell `
+    -Argument "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$installRoot\install-ripe-atlas.ps1`" -InstallRoot `"$installRoot`"" `
+    -WorkingDirectory $installRoot
 $startup = New-ScheduledTaskTrigger -AtStartup
+$ripeAtlasStartup = New-ScheduledTaskTrigger -AtStartup -RandomDelay (New-TimeSpan -Minutes 2)
 $watchdog = New-ScheduledTaskTrigger `
     -Once `
     -At (Get-Date).AddMinutes(1) `
@@ -292,6 +302,14 @@ Register-ScheduledTask `
     -Principal $principal `
     -Settings $settings `
     -Description 'daakLOLILE Folding@home, BOINC and RIPE Atlas monitor. Runs without user logon.' `
+    -Force | Out-Null
+Register-ScheduledTask `
+    -TaskName $ripeAtlasTask `
+    -Action $ripeAtlasAction `
+    -Trigger $ripeAtlasStartup `
+    -Principal $principal `
+    -Settings $settings `
+    -Description 'Completes the official RIPE Atlas software probe installation after WSL is ready.' `
     -Force | Out-Null
 
 foreach ($oldRule in @(

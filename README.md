@@ -9,7 +9,7 @@
 [![Tor non-exit](https://img.shields.io/badge/Tor-middle%20relay-7D4698?logo=torproject)](https://community.torproject.org/relay/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-daakLOLILE combines live Tor middle-relay traffic, Snowflake proxy statistics, CPU/GPU/RAM/disk/network telemetry, estimated power use, safe automatic night power modes, a small Windows desktop widget, and a macOS menu bar app. Remote access and power control are designed for a private [Tailscale](https://tailscale.com/) network.
+daakLOLILE combines live Tor middle-relay traffic, Snowflake proxy statistics, Folding@home, BOINC, RIPE Atlas, CPU/GPU/RAM/disk/network telemetry, estimated power use, safe automatic night power modes, a small Windows desktop widget, and a macOS menu bar app. Remote access and power control are designed for a private [Tailscale](https://tailscale.com/) network.
 
 ![daakLOLILE dashboard preview](docs/daaklolile-dashboard.svg)
 
@@ -20,6 +20,7 @@ daakLOLILE combines live Tor middle-relay traffic, Snowflake proxy statistics, C
 - Track CPU, GPU, memory, disks, network throughput, temperatures, component power sensors, and top processes.
 - Keep collecting data before logon by running the Windows tasks as `SYSTEM`.
 - Check the PC and switch power modes from a Mac menu bar app over Tailscale.
+- Track Folding@home work, BOINC projects, and RIPE Atlas measurements without sharing storage.
 - Automatically use an efficient CPU/display profile at night without sleep, hibernation, network shutdown, or service interruption.
 - Keep Tor settings localhost-only while allowing the narrow power-mode endpoint from localhost and Tailscale.
 
@@ -103,6 +104,21 @@ Windows normally uses otherwise-idle RAM as a useful file cache, so daakLOLILE d
 
 When intervention is justified, daakLOLILE trims only its own dashboard and monitoring helper processes. Tor, Snowflake, Tailscale, Chrome Remote Desktop, RDP, SMB, Syncthing, other applications, and the Windows file cache are excluded. The dashboard and macOS companion also offer a constrained manual maintenance button over localhost or Tailscale.
 
+## Volunteer science and measurement stack
+
+Run the official client installer from an elevated PowerShell:
+
+```powershell
+.\windows\install-volunteer-stack.ps1 -EnableRipeAtlasPrerequisites
+.\windows\install.ps1 -InstallWidget
+```
+
+- Folding@home runs as `lolile`, uses two CPU threads, can use a supported GPU, and is configured for idle use.
+- BOINC runs as a Windows service with conservative limits: 33% CPU, 25–40% RAM, 5 GB disk, and no GPU. A project account still has to be connected by its owner.
+- RIPE Atlas is installed from RIPE NCC's official Debian repository inside WSL after the required reboot. Its public key must be registered by the owner at [RIPE Atlas software probe registration](https://atlas.ripe.net/apply/swprobe/).
+
+The RIPE Atlas setup verifies the repository package against the official release checksum, does not require an inbound router port, disables interface traffic reporting, and does not share files or disk space. Account passwords and API keys are never stored in daakLOLILE.
+
 ## Power readings and Corsair PSUs
 
 The PSU wattage printed on the label—650 W, 750 W, and so on—is maximum capacity, not continuous consumption.
@@ -124,6 +140,10 @@ For accurate whole-PC energy measurement, use a reputable external smart plug or
 | Default night schedule | `00:00–08:00` local Windows time |
 | Power controller | Startup + every 5 minutes, as `SYSTEM` |
 | Memory maintenance | Daily at `04:30`, as `SYSTEM`; pressure-gated |
+| Volunteer monitor | Startup + every 5 minutes, as `SYSTEM` |
+| Folding@home | 2 CPU threads; idle policy |
+| BOINC | 33% CPU, 5 GB disk, GPU disabled |
+| RIPE Atlas | Official Debian package in WSL; no disk sharing |
 | Tor root | `C:\ProgramData\TorRelay` |
 
 Energy history and relay traffic counters stay on the Windows PC. No analytics or third-party telemetry is included.

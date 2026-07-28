@@ -145,14 +145,21 @@ function Get-RipeAtlasStatus {
         Where-Object { $_ }
     $distro = $distroNames | Where-Object { $_ -match '(?i)(ripe|debian|ubuntu)' } | Select-Object -First 1
     $probeKeyPath = Join-Path $volunteerRoot 'ripe-atlas-probe-key.pub'
+    $installStatePath = Join-Path $volunteerRoot 'ripe-atlas-install.json'
     $registeredPath = Join-Path $volunteerRoot 'ripe-atlas-registered.json'
+    $installState = $null
+    if (Test-Path -LiteralPath $installStatePath) {
+        try { $installState = Get-Content -LiteralPath $installStatePath -Raw | ConvertFrom-Json } catch {}
+    }
     $registered = Test-Path -LiteralPath $registeredPath
     $running = $false
     if ($distro) {
         & wsl.exe -d $distro -- sh -lc 'pgrep -f ripe-atlas >/dev/null' 2>$null
         $running = $LASTEXITCODE -eq 0
     }
-    $stateName = if ($wslFeature -ne 'Enabled' -or $vmFeature -ne 'Enabled') {
+    $stateName = if ($installState.state -eq 'error') {
+        'error'
+    } elseif ($wslFeature -ne 'Enabled' -or $vmFeature -ne 'Enabled') {
         'windows-feature-required'
     } elseif (-not $distro) {
         'distro-required'
@@ -173,7 +180,10 @@ function Get-RipeAtlasStatus {
         distro = if ($distro) { [string]$distro } else { '' }
         lowImpact = $true
         diskSharing = $false
+        registrationUrl = 'https://atlas.ripe.net/apply/swprobe/'
+        publicKeyPath = $probeKeyPath
         detail = switch ($stateName) {
+            'error' { if ($installState.detail) { [string]$installState.detail } else { 'RIPE Atlas kurulumu hata verdi.' } }
             'windows-feature-required' { 'WSL altyapısı kurulmayı ve yeniden başlatmayı bekliyor.' }
             'distro-required' { 'Linux ortamı kurulmayı bekliyor.' }
             'probe-install-required' { 'RIPE Atlas yazılım probu kurulmayı bekliyor.' }

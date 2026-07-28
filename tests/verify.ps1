@@ -9,6 +9,7 @@ $powerShellFiles = @(
     'windows\memory-manager.ps1',
     'windows\volunteer-monitor.ps1',
     'windows\install-volunteer-stack.ps1',
+    'windows\install-ripe-atlas.ps1',
     'windows\widget.ps1'
 )
 
