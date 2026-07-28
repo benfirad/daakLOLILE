@@ -1,0 +1,19 @@
+{
+  "name": "daakLOLILE Operasyon Paneli",
+  "short_name": "daakLOLILE",
+  "description": "Tor, gönüllü hesaplama ve Windows sistem izleme paneli.",
+  "lang": "tr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0d0c10",
+  "theme_color": "#0d0c10",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

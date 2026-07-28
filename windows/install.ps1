@@ -75,7 +75,9 @@ foreach ($required in @(
     (Join-Path $sourceRoot 'windows\fah-control.mjs'),
     (Join-Path $sourceRoot 'windows\widget.ps1'),
     (Join-Path $sourceRoot 'windows\dashboard\server.mjs'),
-    (Join-Path $sourceRoot 'windows\dashboard\public\dashboard.html')
+    (Join-Path $sourceRoot 'windows\dashboard\public\dashboard.html'),
+    (Join-Path $sourceRoot 'windows\dashboard\public\favicon.svg'),
+    (Join-Path $sourceRoot 'windows\dashboard\public\site.webmanifest')
 )) {
     if (-not (Test-Path -LiteralPath $required)) {
         throw "Missing package file: $required"
@@ -195,6 +197,14 @@ Copy-Item `
 Copy-Item `
     -LiteralPath (Join-Path $sourceRoot 'windows\dashboard\public\dashboard.html') `
     -Destination (Join-Path $publicRoot 'dashboard.html') `
+    -Force
+Copy-Item `
+    -LiteralPath (Join-Path $sourceRoot 'windows\dashboard\public\favicon.svg') `
+    -Destination (Join-Path $publicRoot 'favicon.svg') `
+    -Force
+Copy-Item `
+    -LiteralPath (Join-Path $sourceRoot 'windows\dashboard\public\site.webmanifest') `
+    -Destination (Join-Path $publicRoot 'site.webmanifest') `
     -Force
 Write-Utf8Bom `
     -Source (Join-Path $sourceRoot 'windows\widget.ps1') `

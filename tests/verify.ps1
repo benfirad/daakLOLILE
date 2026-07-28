@@ -97,6 +97,8 @@ foreach ($pattern in $unsafeConsolePatterns) {
 $dashboardSource = Get-Content -LiteralPath (Join-Path $repoRoot 'windows\dashboard\public\dashboard.html') -Raw
 foreach ($required in @(
     'Güvenli BOINC konsolu',
+    'href="/favicon.svg"',
+    'href="/site.webmanifest"',
     'data-console-action="boinc-sync"',
     'data-console-action="boinc-pause"',
     'data-console-action="boinc-headless"',
@@ -105,6 +107,15 @@ foreach ($required in @(
 )) {
     if ($dashboardSource -notmatch [regex]::Escape($required)) {
         throw "Missing constrained console UI feature: $required"
+    }
+}
+
+foreach ($asset in @(
+    'windows\dashboard\public\favicon.svg',
+    'windows\dashboard\public\site.webmanifest'
+)) {
+    if (-not (Test-Path -LiteralPath (Join-Path $repoRoot $asset))) {
+        throw "Missing dashboard identity asset: $asset"
     }
 }
 
