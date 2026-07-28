@@ -9,15 +9,35 @@ $ErrorActionPreference = 'Stop'
 $resultPath = Join-Path $InstallRoot 'post-reboot-result.json'
 $volunteerInstaller = Join-Path $InstallRoot 'install-volunteer-stack.ps1'
 $ripeInstaller = Join-Path $InstallRoot 'install-ripe-atlas.ps1'
+$powerShell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 
 try {
-    & $volunteerInstaller -InstallRoot $InstallRoot -EnableRipeAtlasPrerequisites
-    if ($LASTEXITCODE -notin @(0,3010)) {
-        throw "Volunteer stack installer returned exit code $LASTEXITCODE."
+    $volunteerProcess = Start-Process `
+        -FilePath $powerShell `
+        -ArgumentList @(
+            '-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
+            '-File',"`"$volunteerInstaller`"",
+            '-InstallRoot',"`"$InstallRoot`"",
+            '-EnableRipeAtlasPrerequisites'
+        ) `
+        -WindowStyle Hidden `
+        -PassThru `
+        -Wait
+    if ($volunteerProcess.ExitCode -notin @(0,3010)) {
+        throw "Volunteer stack installer returned exit code $($volunteerProcess.ExitCode)."
     }
 
-    & $ripeInstaller -InstallRoot $InstallRoot
-    $ripeExit = $LASTEXITCODE
+    $ripeProcess = Start-Process `
+        -FilePath $powerShell `
+        -ArgumentList @(
+            '-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
+            '-File',"`"$ripeInstaller`"",
+            '-InstallRoot',"`"$InstallRoot`""
+        ) `
+        -WindowStyle Hidden `
+        -PassThru `
+        -Wait
+    $ripeExit = $ripeProcess.ExitCode
     $boinc = Get-Service -Name BOINC -ErrorAction SilentlyContinue
     $ripeStatePath = Join-Path $InstallRoot 'volunteer\ripe-atlas-install.json'
     $ripeState = if (Test-Path -LiteralPath $ripeStatePath) {

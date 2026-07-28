@@ -91,13 +91,15 @@ function Get-BoincStatus {
     if (Test-Path -LiteralPath $clientStatePath) {
         try {
             [xml]$state = Get-Content -LiteralPath $clientStatePath -Raw
-            $projects = @($state.client_state.project | ForEach-Object {
+            $projectNodes = @($state.SelectNodes('/client_state/project'))
+            $activeTaskNodes = @($state.SelectNodes('/client_state/active_task_set/active_task'))
+            $projects = @($projectNodes | ForEach-Object {
                 [ordered]@{
                     name = if ($_.project_name) { [string]$_.project_name } else { [string]$_.master_url }
                     url = [string]$_.master_url
                 }
             })
-            $activeTasks = @($state.client_state.active_task_set.active_task).Count
+            $activeTasks = $activeTaskNodes.Count
         } catch {}
     }
     $running = [bool]$process -or $service.Status -eq 'Running'
@@ -141,7 +143,7 @@ function Get-RipeAtlasStatus {
     $wslFeature = (Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -ErrorAction SilentlyContinue).State
     $vmFeature = (Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -ErrorAction SilentlyContinue).State
     $distroNames = @(& wsl.exe --list --quiet 2>$null) |
-        ForEach-Object { ([string]$_).Replace([char]0, '').Trim() } |
+        ForEach-Object { (([string]$_) -replace [char]0, '').Trim() } |
         Where-Object { $_ }
     $distro = $distroNames | Where-Object { $_ -match '(?i)(ripe|debian|ubuntu)' } | Select-Object -First 1
     $probeKeyPath = Join-Path $volunteerRoot 'ripe-atlas-probe-key.pub'

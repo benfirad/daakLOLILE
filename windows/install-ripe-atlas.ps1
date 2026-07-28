@@ -57,13 +57,23 @@ try {
     }
 
     $distroNames = @(& wsl.exe --list --quiet 2>$null) |
-        ForEach-Object { ([string]$_).Replace([char]0, '').Trim() } |
+        ForEach-Object { (([string]$_) -replace [char]0, '').Trim() } |
         Where-Object { $_ }
     if ($Distro -notin $distroNames) {
         Write-InstallState `
             -State 'installing-distro' `
             -Detail 'Resmi Debian WSL ortamı kuruluyor.'
-        & wsl.exe --install -d $Distro --no-launch
+        # Bypass Microsoft Store delivery. On hosts where firmware virtualization
+        # is disabled, use WSL1 so the probe does not depend on a virtual machine.
+        $virtualizationEnabled = [bool](
+            Get-CimInstance Win32_Processor |
+                Select-Object -First 1 -ExpandProperty VirtualizationFirmwareEnabled
+        )
+        $installArguments = @('--install','-d',$Distro,'--no-launch','--web-download')
+        if (-not $virtualizationEnabled) {
+            $installArguments += @('--version','1','--enable-wsl1')
+        }
+        & wsl.exe @installArguments
         if ($LASTEXITCODE -notin @(0,3010)) {
             if (Test-RebootPending) {
                 Write-InstallState `
@@ -73,6 +83,17 @@ try {
                 exit 3010
             }
             throw "Debian WSL installation failed with exit code $LASTEXITCODE."
+        }
+
+        $distroNames = @(& wsl.exe --list --quiet 2>$null) |
+            ForEach-Object { (([string]$_) -replace [char]0, '').Trim() } |
+            Where-Object { $_ }
+        if ($Distro -notin $distroNames) {
+            Write-InstallState `
+                -State 'reboot-required' `
+                -Detail 'WSL1 uyumluluğu hazır; Debian ve RIPE Atlas sonraki Windows açılışında otomatik tamamlanacak.' `
+                -RebootRequired $true
+            exit 3010
         }
     }
 
