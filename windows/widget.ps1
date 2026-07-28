@@ -14,7 +14,7 @@ $xaml = @'
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Width="270" Height="184" FontFamily="Segoe UI"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize">
+        Topmost="True" ShowActivated="True" ShowInTaskbar="False" ResizeMode="NoResize">
   <Border CornerRadius="14" Background="#F215131A" BorderBrush="#3A3441" BorderThickness="1" Padding="12">
     <Border.Effect>
       <DropShadowEffect BlurRadius="28" ShadowDepth="8" Opacity="0.38" Color="#000000"/>
@@ -224,6 +224,23 @@ function Ensure-WidgetVisible {
 }
 
 Move-WidgetToCorner
+$window.Add_Loaded({
+    Move-WidgetToCorner
+    $window.Topmost = $true
+    $window.Activate() | Out-Null
+})
+$displaySettingsHandler = [System.EventHandler]{
+    $window.Dispatcher.BeginInvoke(
+        [Action]{
+            Move-WidgetToCorner
+            $window.Topmost = $true
+        }
+    ) | Out-Null
+}
+[Microsoft.Win32.SystemEvents]::add_DisplaySettingsChanged($displaySettingsHandler)
+$window.Add_Closed({
+    [Microsoft.Win32.SystemEvents]::remove_DisplaySettingsChanged($displaySettingsHandler)
+})
 $window.Add_MouseLeftButtonDown({
     if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) {
         $window.DragMove()

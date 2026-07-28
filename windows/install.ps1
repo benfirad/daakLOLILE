@@ -386,6 +386,7 @@ Start-ScheduledTask -TaskName $volunteerTask
 if ($InstallWidget) {
     $launcher = Join-Path $installRoot 'launch-widget.vbs'
     @"
+WScript.Sleep 8000
 CreateObject("Wscript.Shell").Run "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""$installRoot\widget.ps1""", 0, False
 "@ | Set-Content -LiteralPath $launcher -Encoding ASCII
     $startupFolder = [Environment]::GetFolderPath('Startup')
