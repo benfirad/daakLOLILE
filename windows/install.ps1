@@ -250,9 +250,6 @@ $dashboardLauncher = @"
 `$env:TOR_ROOT = '$escapedTorRoot'
 `$env:TOR_OR_PORT = '$TorOrPort'
 `$env:TOR_SERVICE_NAME = '$TorServiceName'
-Start-Process -FilePath '$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe' ``
-    -ArgumentList '-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "$installRoot\volunteer-monitor.ps1" -InstallRoot "$installRoot"' ``
-    -WindowStyle Hidden
 & '$escapedNode' '$dashboardRoot\server.mjs'
 "@
 Set-Content -LiteralPath (Join-Path $installRoot 'start-dashboard.ps1') -Value $dashboardLauncher -Encoding UTF8

@@ -37,27 +37,41 @@ socket.onmessage = event => {
   if (handled || String(event.data) === "\"ping\"") return;
   const data = JSON.parse(String(event.data));
   handled = true;
+  const group = data.groups?.[""]?.config || {};
 
-  if (command === "configure") {
+  if (["configure", "eco", "balanced"].includes(command)) {
     const supported = Object.entries(data.info?.gpus || {})
       .filter(([, value]) => value?.supported === true)
       .map(([id]) => id);
     const gpus = Object.fromEntries(supported.map(id => [id, { enabled: true }]));
-    socket.send(JSON.stringify({
-      cmd: "config",
-      config: {
-        groups: {
-          "": {
-            on_idle: true,
-            on_battery: false,
-            keep_awake: false,
-            cpus: 2,
-            gpus,
+    const targetCpus = command === "eco" ? 1 : 2;
+    const gpuState = group.gpus || {};
+    const gpuMatches = supported.every(id => gpuState[id]?.enabled === true);
+    const needsConfig =
+      Number(group.cpus) !== targetCpus ||
+      group.on_idle !== true ||
+      group.on_battery !== false ||
+      group.keep_awake !== false ||
+      !gpuMatches;
+    if (needsConfig) {
+      socket.send(JSON.stringify({
+        cmd: "config",
+        config: {
+          groups: {
+            "": {
+              on_idle: true,
+              on_battery: false,
+              keep_awake: false,
+              cpus: targetCpus,
+              gpus,
+            },
           },
         },
-      },
-    }));
-    socket.send(JSON.stringify({ cmd: "state", state: "fold" }));
+      }));
+    }
+    if (command === "configure") {
+      socket.send(JSON.stringify({ cmd: "state", state: "fold" }));
+    }
   } else if (command === "pause") {
     socket.send(JSON.stringify({ cmd: "state", state: "pause" }));
   } else if (command === "fold") {

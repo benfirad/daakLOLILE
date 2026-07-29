@@ -695,7 +695,7 @@ private struct RelayMenuView: View {
 
     private func powerModeLabel(_ mode: String) -> String {
         switch mode {
-        case "eco": return "Gece tasarrufu"
+        case "eco": return "Derin eko"
         case "performance": return "Yüksek performans"
         case "balanced": return "Dengeli"
         default: return "Hazırlanıyor"

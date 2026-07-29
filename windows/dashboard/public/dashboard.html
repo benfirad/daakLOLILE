@@ -526,7 +526,7 @@
           <div class="power-actions">
             <div class="power-modes">
               <button class="button mode-button" type="button" data-power-mode="auto">Otomatik</button>
-              <button class="button mode-button" type="button" data-power-mode="eco">Gece tasarrufu</button>
+              <button class="button mode-button" type="button" data-power-mode="eco">Derin eko</button>
               <button class="button mode-button" type="button" data-power-mode="balanced">Dengeli</button>
               <button class="button mode-button" type="button" data-power-mode="performance">Yüksek performans</button>
             </div>
@@ -858,15 +858,19 @@
 
       const power = data.power || {};
       const powerLabels = {
-        eco: "Gece tasarrufu",
+        eco: "Derin eko",
         balanced: "Dengeli",
         performance: "Yüksek performans",
         unknown: "Hazır değil",
       };
       $("power-mode-title").textContent = powerLabels[power.effectiveMode] || "Hazır değil";
+      const energyPolicy = power.energyPolicy || {};
+      const ecoDetail = power.effectiveMode === "eco"
+        ? ` · CPU %${energyPolicy.cpuMaxPercent || 45} · Folding GPU açık/${energyPolicy.foldingCpuThreads || 1} CPU · BOINC %${energyPolicy.boincCpuPercent || 25}`
+        : "";
       $("power-mode-note").textContent = power.controlMode === "auto"
-        ? `Otomatik · ${power.nightStart || "00:00"}–${power.nightEnd || "08:00"} · Uyku ve ağ kesintisi yok`
-        : `Elle seçildi · Uyku ve ağ kesintisi yok · ${powerLabels[power.effectiveMode] || ""}`;
+        ? `Otomatik · ${power.nightStart || "00:00"}–${power.nightEnd || "08:00"} · Uyku ve ağ kesintisi yok${ecoDetail}`
+        : `Elle seçildi · Uyku ve ağ kesintisi yok · ${powerLabels[power.effectiveMode] || ""}${ecoDetail}`;
       if (document.activeElement !== $("night-start")) $("night-start").value = power.nightStart || "00:00";
       if (document.activeElement !== $("night-end")) $("night-end").value = power.nightEnd || "08:00";
       const powerAllowed = data.permissions?.power === true;
@@ -1133,7 +1137,7 @@
     function powerModeText(mode) {
       return {
         auto: "Otomatik mod",
-        eco: "Gece tasarrufu",
+        eco: "Derin eko",
         balanced: "Dengeli mod",
         performance: "Yüksek performans",
       }[mode] || "Güç modu";

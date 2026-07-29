@@ -86,8 +86,14 @@ function Get-BoincStatus {
     $service = Get-Service -Name BOINC -ErrorAction SilentlyContinue
     $process = Get-Process -Name boinc -ErrorAction SilentlyContinue | Select-Object -First 1
     $clientStatePath = Join-Path $boincDataRoot 'client_state.xml'
+    $preferencesPath = Join-Path $boincDataRoot 'global_prefs_override.xml'
     $projects = @()
     $activeTasks = 0
+    $cpuPercent = 33
+    $maxCpuPercent = 33
+    $busyRamPercent = 25
+    $idleRamPercent = 40
+    $diskGB = 5
     if (Test-Path -LiteralPath $clientStatePath) {
         try {
             [xml]$state = Get-Content -LiteralPath $clientStatePath -Raw
@@ -102,6 +108,18 @@ function Get-BoincStatus {
             $activeTasks = $activeTaskNodes.Count
         } catch {}
     }
+    if (Test-Path -LiteralPath $preferencesPath) {
+        try {
+            [xml]$preferences = Get-Content -LiteralPath $preferencesPath -Raw
+            $prefs = $preferences.global_preferences
+            if ($prefs.cpu_usage_limit) { $cpuPercent = [int][double]$prefs.cpu_usage_limit }
+            if ($prefs.max_ncpus_pct) { $maxCpuPercent = [int][double]$prefs.max_ncpus_pct }
+            if ($prefs.ram_max_used_busy_pct) { $busyRamPercent = [int][double]$prefs.ram_max_used_busy_pct }
+            if ($prefs.ram_max_used_idle_pct) { $idleRamPercent = [int][double]$prefs.ram_max_used_idle_pct }
+            if ($prefs.disk_max_used_gb) { $diskGB = [int][double]$prefs.disk_max_used_gb }
+        } catch {}
+    }
+    $maxCpuThreads = [math]::Max(1,[math]::Ceiling(([int]$env:NUMBER_OF_PROCESSORS) * $maxCpuPercent / 100))
     $running = [bool]$process -or $service.Status -eq 'Running'
     $stateName = if (-not $installed) {
         'not-installed'
@@ -122,11 +140,11 @@ function Get-BoincStatus {
         projects = $projects
         activeTasks = $activeTasks
         limits = [ordered]@{
-            cpuPercent = 33
-            maxCpuThreads = 4
-            busyRamPercent = 25
-            idleRamPercent = 40
-            diskGB = 5
+            cpuPercent = $cpuPercent
+            maxCpuThreads = $maxCpuThreads
+            busyRamPercent = $busyRamPercent
+            idleRamPercent = $idleRamPercent
+            diskGB = $diskGB
             gpuEnabled = $false
         }
         detail = switch ($stateName) {

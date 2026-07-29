@@ -95,11 +95,11 @@ The Mac app reads monitoring data and can call only the constrained power-mode e
 daakLOLILE creates three dedicated Windows power schemes and an automatic controller:
 
 - **Automatic:** night-saving from `00:00` to `08:00` by default, balanced during the day.
-- **Night saving:** caps CPU maximum state at 60%, disables boost where supported, and turns the display off sooner.
+- **Night saving:** caps CPU maximum state at 45%, disables boost, prefers passive cooling and parked cores, uses maximum PCIe link savings, and allows an idle HDD to spin down after 10 minutes. Folding keeps its supported GPU and one CPU thread; BOINC keeps a 25% CPU budget.
 - **Balanced:** full CPU range with normal display timing.
 - **High performance:** full CPU range and boost with a longer display timeout.
 
-All daakLOLILE schemes explicitly disable sleep, hibernation, and hybrid sleep. They do not change network-adapter, USB, disk, Tor, Snowflake, Tailscale, Chrome Remote Desktop, RDP, SMB, or Syncthing settings. The controller runs as `SYSTEM` before login and checks the schedule every five minutes.
+All daakLOLILE schemes explicitly disable sleep, hibernation, and hybrid sleep. They do not power down network adapters or change Tor, Snowflake, Tailscale, Chrome Remote Desktop, RDP, SMB, or Syncthing settings. The night-saving plan can spin down an idle mechanical disk, which wakes automatically on the next file access. The controller runs as `SYSTEM` before login and checks the schedule every five minutes.
 
 ## Safe memory maintenance
 
@@ -117,7 +117,7 @@ Run the official client installer from an elevated PowerShell:
 ```
 
 - Folding@home runs as `lolile`, uses two CPU threads, can use a supported GPU, and is configured for idle use.
-- BOINC runs as a Windows service with conservative limits: 33% CPU, 25–40% RAM, 5 GB disk, and no GPU. A project account still has to be connected by its owner.
+- BOINC runs as a Windows service with conservative limits: 25% CPU in deep eco mode, 33% in other modes, 25–40% RAM, 5 GB disk, and no GPU. A project account still has to be connected by its owner.
 - BOINC Manager stays hidden. The `daakLOLILE BOINC Headless Guard` removes Manager autostart entries, blocks interactive execution of `boincmgr.exe`, and rechecks the policy at startup, logon, and every five minutes. BOINC remains controllable from the allow-listed private dashboard console. The daakLOLILE uninstaller restores Manager execution permissions.
 - RIPE Atlas is installed from RIPE NCC's official Debian repository inside WSL after the required reboot. Its public key must be registered by the owner at [RIPE Atlas software probe registration](https://atlas.ripe.net/apply/swprobe/).
 
@@ -146,7 +146,7 @@ For accurate whole-PC energy measurement, use a reputable external smart plug or
 | Memory maintenance | Daily at `04:30`, as `SYSTEM`; pressure-gated |
 | Volunteer monitor | Startup + every 5 minutes, as `SYSTEM` |
 | Folding@home | 2 CPU threads; idle policy |
-| BOINC | 33% CPU, 5 GB disk, GPU disabled |
+| BOINC | 25% CPU in deep eco / 33% otherwise, 5 GB disk, GPU disabled |
 | RIPE Atlas | Official Debian package in WSL; no disk sharing |
 | Tor root | `C:\ProgramData\TorRelay` |
 

@@ -81,6 +81,32 @@ foreach ($required in @(
     }
 }
 
+$powerManagerSource = Get-Content -LiteralPath (Join-Path $repoRoot 'windows\power-manager.ps1') -Raw
+foreach ($required in @('Set-VolunteerBudget','boincCpuPercent','PROCTHROTTLEMAX','PERFEPP')) {
+    if ($powerManagerSource -notmatch [regex]::Escape($required)) {
+        throw "Missing eco power-budget feature: $required"
+    }
+}
+
+$fahControlSource = Get-Content -LiteralPath (Join-Path $repoRoot 'windows\fah-control.mjs') -Raw
+foreach ($required in @('targetCpus','command === "eco"','gpuMatches')) {
+    if ($fahControlSource -notmatch [regex]::Escape($required)) {
+        throw "Missing Folding eco-budget feature: $required"
+    }
+}
+
+$installerSource = Get-Content -LiteralPath (Join-Path $repoRoot 'windows\install.ps1') -Raw
+$dashboardLauncherMatch = [regex]::Match(
+    $installerSource,
+    '(?s)\$dashboardLauncher\s*=\s*@"\r?\n(.*?)\r?\n"@'
+)
+if (-not $dashboardLauncherMatch.Success) {
+    throw 'Dashboard launcher template was not found.'
+}
+if ($dashboardLauncherMatch.Groups[1].Value -match 'volunteer-monitor\.ps1') {
+    throw 'Dashboard launcher must not create a duplicate volunteer monitor.'
+}
+
 $unsafeConsolePatterns = @(
     'input\.command',
     'input\.executable',
@@ -102,6 +128,7 @@ foreach ($required in @(
     'data-console-action="boinc-sync"',
     'data-console-action="boinc-pause"',
     'data-console-action="boinc-headless"',
+    'Folding GPU açık/',
     'data-console-action="boinc-restart"',
     'X-daakLOLILE-Token'
 )) {

@@ -15,6 +15,9 @@ param(
 $ErrorActionPreference = 'Stop'
 $configPath = Join-Path $InstallRoot 'power-config.json'
 $statusPath = Join-Path $InstallRoot 'power-status.json'
+$fahControlPath = Join-Path $InstallRoot 'fah-control.mjs'
+$boincPreferencesPath = 'C:\ProgramData\BOINC\global_prefs_override.xml'
+$boincCommandPath = 'C:\Program Files\BOINC\boinccmd.exe'
 $mutex = New-Object System.Threading.Mutex($false, 'Global\daakLOLILEPowerManager')
 
 function Invoke-PowerCfg {
@@ -77,12 +80,24 @@ function Set-EcoScheme {
     param([string]$Scheme)
     Set-AlwaysReachable -Scheme $Scheme
     Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMIN' -Value 5
-    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMAX' -Value 60
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMAX' -Value 45
     Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PERFBOOSTMODE' -Value 0 -BestEffort
-    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_VIDEO' -Setting 'VIDEOIDLE' -Value 600
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PERFEPP' -Value 90 -BestEffort
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'SYSCOOLPOL' -Value 0 -BestEffort
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'CPMINCORES' -Value 10 -BestEffort
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'CPMAXCORES' -Value 50 -BestEffort
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_DISK' -Setting 'DISKIDLE' -Value 600
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PCIEXPRESS' -Setting 'ASPM' -Value 2 -BestEffort
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_VIDEO' -Setting 'VIDEOIDLE' -Value 300
     Set-DcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMIN' -Value 5
-    Set-DcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMAX' -Value 55
+    Set-DcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMAX' -Value 40
     Set-DcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PERFBOOSTMODE' -Value 0 -BestEffort
+    Set-DcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PERFEPP' -Value 95 -BestEffort
+    Set-DcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'SYSCOOLPOL' -Value 0 -BestEffort
+    Set-DcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'CPMINCORES' -Value 10 -BestEffort
+    Set-DcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'CPMAXCORES' -Value 50 -BestEffort
+    Set-DcValue -Scheme $Scheme -Subgroup 'SUB_DISK' -Setting 'DISKIDLE' -Value 300
+    Set-DcValue -Scheme $Scheme -Subgroup 'SUB_PCIEXPRESS' -Setting 'ASPM' -Value 2 -BestEffort
     Set-DcValue -Scheme $Scheme -Subgroup 'SUB_VIDEO' -Setting 'VIDEOIDLE' -Value 300
 }
 
@@ -91,6 +106,12 @@ function Set-BalancedScheme {
     Set-AlwaysReachable -Scheme $Scheme
     Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMIN' -Value 5
     Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMAX' -Value 100
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PERFEPP' -Value 50 -BestEffort
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'SYSCOOLPOL' -Value 1 -BestEffort
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'CPMINCORES' -Value 10 -BestEffort
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'CPMAXCORES' -Value 100 -BestEffort
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_DISK' -Setting 'DISKIDLE' -Value 1200
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PCIEXPRESS' -Setting 'ASPM' -Value 1 -BestEffort
     Set-AcValue -Scheme $Scheme -Subgroup 'SUB_VIDEO' -Setting 'VIDEOIDLE' -Value 1200
     Set-DcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMIN' -Value 5
     Set-DcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMAX' -Value 80
@@ -103,6 +124,12 @@ function Set-PerformanceScheme {
     Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMIN' -Value 20
     Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMAX' -Value 100
     Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PERFBOOSTMODE' -Value 2 -BestEffort
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PERFEPP' -Value 20 -BestEffort
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'SYSCOOLPOL' -Value 1 -BestEffort
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'CPMINCORES' -Value 100 -BestEffort
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'CPMAXCORES' -Value 100 -BestEffort
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_DISK' -Setting 'DISKIDLE' -Value 0
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PCIEXPRESS' -Setting 'ASPM' -Value 0 -BestEffort
     Set-AcValue -Scheme $Scheme -Subgroup 'SUB_VIDEO' -Setting 'VIDEOIDLE' -Value 1800
     Set-DcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMIN' -Value 5
     Set-DcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMAX' -Value 100
@@ -155,8 +182,73 @@ function Get-ProtectedStatus {
     }
 }
 
+function Get-ModePolicy {
+    param([string]$EffectiveMode)
+    if ($EffectiveMode -eq 'eco') {
+        return [pscustomobject]@{
+            cpuMaxPercent = 45
+            cpuBoost = $false
+            diskIdleMinutes = 10
+            foldingCpuThreads = 1
+            foldingGpuPreserved = $true
+            boincCpuPercent = 25
+        }
+    }
+    return [pscustomobject]@{
+        cpuMaxPercent = 100
+        cpuBoost = $EffectiveMode -eq 'performance'
+        diskIdleMinutes = if ($EffectiveMode -eq 'performance') { 0 } else { 20 }
+        foldingCpuThreads = 2
+        foldingGpuPreserved = $true
+        boincCpuPercent = 33
+    }
+}
+
+function Set-BoincCpuBudget {
+    param([int]$CpuPercent)
+    if (-not (Test-Path -LiteralPath $boincPreferencesPath)) { return }
+    [xml]$xml = Get-Content -LiteralPath $boincPreferencesPath -Raw
+    $root = $xml.SelectSingleNode('/global_preferences')
+    if (-not $root) { return }
+    $changed = $false
+    foreach ($name in @('max_ncpus_pct','cpu_usage_limit')) {
+        $node = $root.SelectSingleNode($name)
+        if (-not $node) {
+            $node = $xml.CreateElement($name)
+            [void]$root.AppendChild($node)
+            $changed = $true
+        }
+        $desired = '{0}.000000' -f $CpuPercent
+        if ($node.InnerText -ne $desired) {
+            $node.InnerText = $desired
+            $changed = $true
+        }
+    }
+    if ($changed) {
+        $xml.Save($boincPreferencesPath)
+    }
+    if ($changed -and (Test-Path -LiteralPath $boincCommandPath)) {
+        & $boincCommandPath --read_global_prefs_override 2>$null | Out-Null
+    }
+}
+
+function Set-VolunteerBudget {
+    param([string]$EffectiveMode)
+    $policy = Get-ModePolicy -EffectiveMode $EffectiveMode
+    Set-BoincCpuBudget -CpuPercent $policy.boincCpuPercent
+    $fahListening = Get-NetTCPConnection -LocalPort 7396 -State Listen -ErrorAction SilentlyContinue
+    if ($fahListening -and (Test-Path -LiteralPath $fahControlPath) -and (Get-Command node.exe -ErrorAction SilentlyContinue)) {
+        $fahMode = if ($EffectiveMode -eq 'eco') { 'eco' } else { 'balanced' }
+        & node.exe $fahControlPath $fahMode 2>$null | Out-Null
+    }
+    return $policy
+}
+
 function Write-Status {
-    param($Config,[string]$EffectiveMode)
+    param($Config,[string]$EffectiveMode,$EnergyPolicy)
+    if (-not $EnergyPolicy) {
+        $EnergyPolicy = Get-ModePolicy -EffectiveMode $EffectiveMode
+    }
     $status = [ordered]@{
         available = $true
         product = 'daakLOLILE'
@@ -167,6 +259,7 @@ function Write-Status {
         nightEnd = [string]$Config.nightEnd
         isNight = Test-NightWindow -Start $Config.nightStart -End $Config.nightEnd
         updatedAt = (Get-Date).ToUniversalTime().ToString('o')
+        energyPolicy = $EnergyPolicy
         safeguards = Get-ProtectedStatus
     }
     $status | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statusPath -Encoding UTF8
@@ -183,7 +276,8 @@ function Invoke-Tick {
     if ((Get-ActiveScheme) -ne $scheme.ToLowerInvariant()) {
         $null = Invoke-PowerCfg -Arguments @('/setactive',$scheme)
     }
-    return Write-Status -Config $Config -EffectiveMode $effective
+    $policy = Set-VolunteerBudget -EffectiveMode $effective
+    return Write-Status -Config $Config -EffectiveMode $effective -EnergyPolicy $policy
 }
 
 if (-not $mutex.WaitOne([TimeSpan]::FromSeconds(20))) {
