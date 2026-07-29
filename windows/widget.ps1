@@ -38,15 +38,15 @@ $xaml = @'
         </Grid.ColumnDefinitions>
         <Ellipse x:Name="StatusDot" Width="7" Height="7" Fill="#E9B95D" Margin="0,1,8,0"/>
         <StackPanel Grid.Column="1">
-          <TextBlock Text="daakLOLILE · SİSTEM DESTEĞİ" Foreground="#9B94A3" FontSize="8" FontWeight="SemiBold"/>
-          <TextBlock x:Name="StatusText" Text="Bağlanıyor" Foreground="#F4F1F6" FontSize="14" FontWeight="SemiBold" Margin="0,1,0,0"/>
+          <TextBlock Text="daakLOLILE &#x00B7; S&#x0130;STEM DESTE&#x011E;&#x0130;" Foreground="#9B94A3" FontSize="8" FontWeight="SemiBold"/>
+          <TextBlock x:Name="StatusText" Text="Ba&#x011F;lan&#x0131;yor" Foreground="#F4F1F6" FontSize="14" FontWeight="SemiBold" Margin="0,1,0,0"/>
         </StackPanel>
-        <Button x:Name="OpenButton" Grid.Column="2" Content="↗" Width="24" Height="24" Margin="0,0,4,0"
+        <Button x:Name="OpenButton" Grid.Column="2" Content="&#x2197;" Width="24" Height="24" Margin="0,0,4,0"
                 Foreground="#C69BEA" Background="#211D27" BorderBrush="#3A3342"
-                ToolTip="Büyük paneli aç" Cursor="Hand"/>
-        <Button x:Name="CloseButton" Grid.Column="3" Content="×" Width="24" Height="24"
+                ToolTip="B&#x00FC;y&#x00FC;k paneli a&#x00E7;" Cursor="Hand"/>
+        <Button x:Name="CloseButton" Grid.Column="3" Content="&#x00D7;" Width="24" Height="24"
                 Foreground="#9B94A3" Background="#211D27" BorderBrush="#3A3342"
-                ToolTip="Widget'ı kapat" Cursor="Hand"/>
+                ToolTip="Widget'&#x0131; kapat" Cursor="Hand"/>
       </Grid>
 
       <Grid Grid.Row="1" Margin="0,9,0,0">
@@ -55,10 +55,10 @@ $xaml = @'
           <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
         <StackPanel>
-          <TextBlock Text="TOPLAM AĞ DESTEĞİ" Foreground="#777080" FontSize="8" FontWeight="SemiBold"/>
-          <TextBlock x:Name="UsageText" Text="—" Foreground="#F4F1F6" FontSize="15" FontWeight="SemiBold" Margin="0,1,0,0"/>
+          <TextBlock Text="TOPLAM A&#x011E; DESTE&#x011E;&#x0130;" Foreground="#777080" FontSize="8" FontWeight="SemiBold"/>
+          <TextBlock x:Name="UsageText" Text="&#x2014;" Foreground="#F4F1F6" FontSize="15" FontWeight="SemiBold" Margin="0,1,0,0"/>
         </StackPanel>
-        <TextBlock x:Name="PercentText" Grid.Column="1" Text="—" Foreground="#C69BEA"
+        <TextBlock x:Name="PercentText" Grid.Column="1" Text="&#x2014;" Foreground="#C69BEA"
                    FontFamily="Cascadia Mono" FontSize="10" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
       </Grid>
 
@@ -75,19 +75,19 @@ $xaml = @'
         </Grid.ColumnDefinitions>
         <StackPanel>
           <TextBlock Text="TOR" Foreground="#777080" FontSize="8"/>
-          <TextBlock x:Name="BootstrapText" Text="—" Foreground="#D5CFD9" FontSize="9" Margin="0,2,0,0"/>
+          <TextBlock x:Name="BootstrapText" Text="&#x2014;" Foreground="#D5CFD9" FontSize="9" Margin="0,2,0,0"/>
         </StackPanel>
         <StackPanel Grid.Column="1">
           <TextBlock Text="SNOWFLAKE" Foreground="#777080" FontSize="8"/>
-          <TextBlock x:Name="SnowflakeText" Text="—" Foreground="#D5CFD9" FontSize="9" Margin="0,2,0,0"/>
+          <TextBlock x:Name="SnowflakeText" Text="&#x2014;" Foreground="#D5CFD9" FontSize="9" Margin="0,2,0,0"/>
         </StackPanel>
         <StackPanel Grid.Column="2">
           <TextBlock Text="CONSENSUS" Foreground="#777080" FontSize="8"/>
-          <TextBlock x:Name="ConsensusText" Text="—" Foreground="#D5CFD9" FontSize="9" Margin="0,2,0,0"/>
+          <TextBlock x:Name="ConsensusText" Text="&#x2014;" Foreground="#D5CFD9" FontSize="9" Margin="0,2,0,0"/>
         </StackPanel>
       </Grid>
 
-      <TextBlock x:Name="ProjectText" Grid.Row="4" Text="Bilim projeleri hazırlanıyor" Foreground="#9B94A3"
+      <TextBlock x:Name="ProjectText" Grid.Row="4" Text="Bilim projeleri haz&#x0131;rlan&#x0131;yor" Foreground="#9B94A3"
                  FontSize="9" Margin="0,8,0,0" TextTrimming="CharacterEllipsis"/>
 
       <Grid Grid.Row="5" Margin="0,8,0,0">
@@ -96,9 +96,9 @@ $xaml = @'
           <ColumnDefinition Width=".72*"/>
           <ColumnDefinition Width=".73*"/>
         </Grid.ColumnDefinitions>
-        <TextBlock x:Name="PowerText" Text="PC —" Foreground="#C69BEA" FontFamily="Cascadia Mono" FontSize="9"/>
-        <TextBlock x:Name="CpuText" Grid.Column="1" Text="CPU —" Foreground="#D5CFD9" FontFamily="Cascadia Mono" FontSize="9"/>
-        <TextBlock x:Name="GpuText" Grid.Column="2" Text="GPU —" Foreground="#D5CFD9" FontFamily="Cascadia Mono" FontSize="9"/>
+        <TextBlock x:Name="PowerText" Text="PC &#x2014;" Foreground="#C69BEA" FontFamily="Cascadia Mono" FontSize="9"/>
+        <TextBlock x:Name="CpuText" Grid.Column="1" Text="CPU &#x2014;" Foreground="#D5CFD9" FontFamily="Cascadia Mono" FontSize="9"/>
+        <TextBlock x:Name="GpuText" Grid.Column="2" Text="GPU &#x2014;" Foreground="#D5CFD9" FontFamily="Cascadia Mono" FontSize="9"/>
       </Grid>
     </Grid>
   </Border>
@@ -126,6 +126,29 @@ function Format-Bytes([double]$bytes) {
     return ('{0:N' + $digits + '} {1}') -f $bytes, $units[$index]
 }
 
+function Convert-UnicodeLiteral([string]$Text) {
+    return [regex]::Replace($Text, '\\u([0-9A-Fa-f]{4})', {
+        param($match)
+        return [string][char][Convert]::ToInt32($match.Groups[1].Value, 16)
+    })
+}
+
+$ui = @{
+    ActiveOpen = Convert-UnicodeLiteral 'Aktif \u00B7 NAT a\u00E7\u0131k'
+    ActiveDemand = Convert-UnicodeLiteral 'Aktif \u00B7 talebe g\u00F6re'
+    Closed = Convert-UnicodeLiteral 'Kapal\u0131'
+    Dash = Convert-UnicodeLiteral '\u2014'
+    Degree = Convert-UnicodeLiteral '\u00B0'
+    Infinity = Convert-UnicodeLiteral '\u221E'
+    MiddleDot = Convert-UnicodeLiteral '\u00B7'
+    Lira = Convert-UnicodeLiteral '\u20BA'
+    RelayOnline = Convert-UnicodeLiteral 'Relay \u00E7evrimi\u00E7i'
+    Unlimited = Convert-UnicodeLiteral 's\u0131n\u0131rs\u0131z'
+    NotYet = Convert-UnicodeLiteral 'Hen\u00FCz yok'
+    SciencePreparing = Convert-UnicodeLiteral 'Bilim: kurulum/kay\u0131t haz\u0131rlan\u0131yor'
+    PanelOffline = Convert-UnicodeLiteral 'Panel ba\u011Flant\u0131s\u0131 yok'
+}
+
 function Update-Widget {
     try {
         $data = Invoke-RestMethod -Uri 'http://127.0.0.1:17657/api/status' -TimeoutSec 4
@@ -139,7 +162,7 @@ function Update-Widget {
         } elseif ($snowflakeOnline) {
             'Snowflake aktif'
         } elseif ($relayOnline) {
-            'Relay çevrimiçi'
+            $ui.RelayOnline
         } else {
             'Kontrol gerekli'
         }
@@ -147,28 +170,28 @@ function Update-Widget {
         $unlimited = -not [double]$data.traffic.quota
         $supportTotal = if ($null -ne $data.support.total) { [double]$data.support.total } else { [double]$data.traffic.total }
         $usageText.Text = if ($unlimited) {
-            "$(Format-Bytes $supportTotal) · sınırsız"
+            "$(Format-Bytes $supportTotal) $($ui.MiddleDot) $($ui.Unlimited)"
         } else {
             "$(Format-Bytes $supportTotal) / $(Format-Bytes ([double]$data.traffic.quota))"
         }
         $percent = [Math]::Min(100, [Math]::Max(0, [double]$data.traffic.percent))
-        $percentText.Text = if ($unlimited) { '∞' } elseif ($percent -lt 1) { "%$($percent.ToString('0.000'))" } else { "%$($percent.ToString('0.0'))" }
+        $percentText.Text = if ($unlimited) { $ui.Infinity } elseif ($percent -lt 1) { "%$($percent.ToString('0.000'))" } else { "%$($percent.ToString('0.0'))" }
         $progressFill.Width = if ($unlimited) { 246 } else { [Math]::Max(1, 246 * $percent / 100) }
         $progressFill.Opacity = if ($unlimited) { 0.28 } else { 1 }
-        $bootstrapText.Text = if ($relayOnline) { "%$($data.bootstrap) · $($data.port.number)" } else { 'Kapalı' }
+        $bootstrapText.Text = if ($relayOnline) { "%$($data.bootstrap) $($ui.MiddleDot) $($data.port.number)" } else { $ui.Closed }
         $snowflakeText.Text = if ($snowflakeOnline) {
-            if ($data.snowflake.natType -eq 'unrestricted') { 'Aktif · NAT açık' } else { 'Aktif · talebe göre' }
-        } else { 'Kapalı' }
-        $consensusText.Text = if ($data.consensus.running) { 'Listede' } elseif ($data.consensus.found) { 'Bekliyor' } else { 'Henüz yok' }
+            if ($data.snowflake.natType -eq 'unrestricted') { $ui.ActiveOpen } else { $ui.ActiveDemand }
+        } else { $ui.Closed }
+        $consensusText.Text = if ($data.consensus.running) { 'Listede' } elseif ($data.consensus.found) { 'Bekliyor' } else { $ui.NotYet }
 
         $projectLabels = @()
         if ($data.volunteer.folding.running) { $projectLabels += 'FAH' }
         if ($data.volunteer.boinc.running -and @($data.volunteer.boinc.projects).Count -gt 0) { $projectLabels += 'BOINC' }
         if ($data.volunteer.ripeAtlas.running) { $projectLabels += 'RIPE' }
         $projectText.Text = if ($projectLabels.Count) {
-            "Bilim: $($projectLabels -join ' + ') · $activeProjects/4 aktif"
+            "Bilim: $($projectLabels -join ' + ') $($ui.MiddleDot) $activeProjects/4 aktif"
         } else {
-            "Bilim: kurulum/kayıt hazırlanıyor · $activeProjects/4 aktif"
+            "$($ui.SciencePreparing) $($ui.MiddleDot) $activeProjects/4 aktif"
         }
 
         if ($data.hardware.available -eq $true) {
@@ -176,38 +199,38 @@ function Update-Widget {
                 'eco' { 'EKO' }
                 'performance' { 'HIZ' }
                 'balanced' { 'DENGE' }
-                default { '—' }
+                default { $ui.Dash }
             }
             $monthLow = [double]$data.electricity.month.lowTierTry
             $monthHigh = [double]$data.electricity.month.highTierTry
             $monthCost = if ($data.electricity.available -eq $true) {
-                " · ₺$($monthLow.ToString('0.00'))-$($monthHigh.ToString('0.00'))"
+                " $($ui.MiddleDot) $($ui.Lira)$($monthLow.ToString('0.00'))-$($monthHigh.ToString('0.00'))"
             } else { '' }
             $powerText.Text = "$([Math]::Round([double]$data.hardware.power.wallEstimateWatts)) W $modeLabel$monthCost"
             $cpuText.Text = "CPU %$([Math]::Round([double]$data.hardware.cpu.loadPercent))"
             $gpuValue = if ($null -ne $data.hardware.gpu.temperatureC) {
-                "$([Math]::Round([double]$data.hardware.gpu.temperatureC))°"
+                "$([Math]::Round([double]$data.hardware.gpu.temperatureC))$($ui.Degree)"
             } else {
                 "%$([Math]::Round([double]$data.hardware.gpu.loadPercent))"
             }
             $gpuText.Text = "GPU $gpuValue"
         } else {
-            $powerText.Text = 'PC —'
-            $cpuText.Text = 'CPU —'
-            $gpuText.Text = 'GPU —'
+            $powerText.Text = "PC $($ui.Dash)"
+            $cpuText.Text = "CPU $($ui.Dash)"
+            $gpuText.Text = "GPU $($ui.Dash)"
         }
     } catch {
         $statusDot.Fill = '#EF7D7D'
-        $statusText.Text = 'Panel bağlantısı yok'
-        $usageText.Text = '—'
-        $percentText.Text = '—'
-        $bootstrapText.Text = '—'
-        $snowflakeText.Text = '—'
-        $consensusText.Text = '—'
-        $projectText.Text = 'Bilim projeleri —'
-        $powerText.Text = 'PC —'
-        $cpuText.Text = 'CPU —'
-        $gpuText.Text = 'GPU —'
+        $statusText.Text = $ui.PanelOffline
+        $usageText.Text = $ui.Dash
+        $percentText.Text = $ui.Dash
+        $bootstrapText.Text = $ui.Dash
+        $snowflakeText.Text = $ui.Dash
+        $consensusText.Text = $ui.Dash
+        $projectText.Text = "Bilim projeleri $($ui.Dash)"
+        $powerText.Text = "PC $($ui.Dash)"
+        $cpuText.Text = "CPU $($ui.Dash)"
+        $gpuText.Text = "GPU $($ui.Dash)"
     }
 }
 

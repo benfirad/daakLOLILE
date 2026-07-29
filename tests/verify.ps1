@@ -98,6 +98,11 @@ foreach ($required in @('targetCpus','command === "eco"','gpuMatches')) {
     }
 }
 
+$widgetSource = Get-Content -LiteralPath (Join-Path $repoRoot 'windows\widget.ps1') -Raw
+if ($widgetSource -match '[^\x00-\x7F]' -or $widgetSource -notmatch 'Convert-UnicodeLiteral') {
+    throw 'Widget source must remain ASCII-only so Windows PowerShell 5.1 cannot corrupt its Unicode UI text.'
+}
+
 $installerSource = Get-Content -LiteralPath (Join-Path $repoRoot 'windows\install.ps1') -Raw
 $dashboardLauncherMatch = [regex]::Match(
     $installerSource,
