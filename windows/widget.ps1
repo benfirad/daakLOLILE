@@ -92,9 +92,9 @@ $xaml = @'
 
       <Grid Grid.Row="5" Margin="0,8,0,0">
         <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*"/>
-          <ColumnDefinition Width="*"/>
-          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="1.55*"/>
+          <ColumnDefinition Width=".72*"/>
+          <ColumnDefinition Width=".73*"/>
         </Grid.ColumnDefinitions>
         <TextBlock x:Name="PowerText" Text="PC —" Foreground="#C69BEA" FontFamily="Cascadia Mono" FontSize="9"/>
         <TextBlock x:Name="CpuText" Grid.Column="1" Text="CPU —" Foreground="#D5CFD9" FontFamily="Cascadia Mono" FontSize="9"/>
@@ -176,7 +176,12 @@ function Update-Widget {
                 'balanced' { 'DENGE' }
                 default { '—' }
             }
-            $powerText.Text = "$([Math]::Round([double]$data.hardware.power.wallEstimateWatts)) W · $modeLabel"
+            $monthLow = [double]$data.electricity.month.lowTierTry
+            $monthHigh = [double]$data.electricity.month.highTierTry
+            $monthCost = if ($data.electricity.available -eq $true) {
+                " · ₺$($monthLow.ToString('0.00'))-$($monthHigh.ToString('0.00'))"
+            } else { '' }
+            $powerText.Text = "$([Math]::Round([double]$data.hardware.power.wallEstimateWatts)) W $modeLabel$monthCost"
             $cpuText.Text = "CPU %$([Math]::Round([double]$data.hardware.cpu.loadPercent))"
             $gpuValue = if ($null -ne $data.hardware.gpu.temperatureC) {
                 "$([Math]::Round([double]$data.hardware.gpu.temperatureC))°"

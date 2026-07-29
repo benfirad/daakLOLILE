@@ -184,6 +184,37 @@
     .hardware-strip strong { display: block; margin-top: 6px; font-family: var(--mono); font-size: 12px; font-weight: 500; }
     .power-chart { height: 50px; display: flex; align-items: end; gap: 3px; margin-top: 15px; }
     .power-bar { flex: 1; min-width: 2px; min-height: 3px; border-radius: 2px 2px 0 0; background: linear-gradient(to top, rgba(100,214,146,.18), rgba(100,214,146,.85)); transition: height .4s ease; }
+    .electricity { grid-column: span 12; overflow: hidden; }
+    .electricity-layout {
+      display: grid;
+      grid-template-columns: minmax(255px, .72fr) minmax(0, 1.28fr);
+      gap: 18px;
+    }
+    .cost-hero {
+      padding: 20px;
+      border: 1px solid rgba(233,185,93,.18);
+      border-radius: 15px;
+      background:
+        radial-gradient(circle at 85% 5%, rgba(233,185,93,.15), transparent 43%),
+        #100e14;
+    }
+    .cost-hero-value { margin-top: 12px; font-size: clamp(34px, 5vw, 54px); line-height: 1; letter-spacing: -.055em; font-weight: 680; }
+    .cost-hero-value small { color: var(--amber); font-size: 18px; letter-spacing: -.02em; }
+    .cost-hero-note { margin-top: 12px; color: var(--muted); font-size: 11px; line-height: 1.55; }
+    .tariff-badge { display: inline-flex; margin-top: 14px; padding: 7px 9px; border-radius: 8px; border: 1px solid rgba(233,185,93,.16); color: var(--amber); font-family: var(--mono); font-size: 10px; }
+    .cost-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .cost-item { min-height: 104px; padding: 15px; border: 1px solid rgba(255,255,255,.055); border-radius: 13px; background: rgba(255,255,255,.024); }
+    .cost-item span { color: var(--muted); font-size: 10px; letter-spacing: .09em; text-transform: uppercase; }
+    .cost-item strong { display: block; margin-top: 11px; font-family: var(--mono); font-size: 16px; font-weight: 600; }
+    .cost-item small { display: block; margin-top: 7px; color: #817989; font-size: 10px; line-height: 1.45; }
+    .cost-history { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
+    .cost-history-head, .cost-day { display: grid; grid-template-columns: 110px minmax(80px, .7fr) 1fr; gap: 14px; align-items: center; }
+    .cost-history-head { padding-bottom: 8px; color: #7f7787; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+    .cost-day { min-height: 34px; border-top: 1px solid rgba(255,255,255,.04); font-family: var(--mono); font-size: 10px; }
+    .cost-day-date { color: var(--muted); }
+    .cost-day-range { color: var(--amber); text-align: right; }
+    .cost-source { margin-top: 12px; color: #77707e; font-size: 10px; line-height: 1.55; }
+    .cost-source a { color: var(--purple-bright); }
     .power-control {
       margin-top: 16px;
       padding: 16px;
@@ -404,7 +435,7 @@
       .hero { grid-template-columns: 1fr; }
       .hero-side { border-left: 0; border-top: 1px solid var(--line); padding: 22px 0 0; }
       .usage, .health, .logs, .network, .snowflake, .volunteer, .console-card, .processes-card, .storage-card { grid-column: span 12; }
-      .hardware-layout { grid-template-columns: 1fr; }
+      .hardware-layout, .electricity-layout { grid-template-columns: 1fr; }
       .console-layout { grid-template-columns: 1fr; }
       .snowflake-grid { grid-template-columns: repeat(2, 1fr); }
       .project-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -419,7 +450,8 @@
       .stamp, .button .wide, .relay-search { display: none; }
       .hero { padding: 20px; }
       .hero-side { grid-template-columns: 1fr; }
-      .sensor-grid, .hardware-strip, .power-control { grid-template-columns: 1fr; }
+      .sensor-grid, .hardware-strip, .power-control, .cost-summary { grid-template-columns: 1fr; }
+      .cost-history-head, .cost-day { grid-template-columns: 88px 72px 1fr; gap: 8px; }
       .power-modes { grid-template-columns: repeat(2,1fr); }
       .power-schedule { justify-content: flex-start; flex-wrap: wrap; }
       .usage-meta, .field-grid { grid-template-columns: 1fr; }
@@ -555,6 +587,46 @@
           </div>
         </div>
         <div class="power-chart" id="power-chart" aria-label="Yakın dönem tahmini güç grafiği"></div>
+      </article>
+
+      <article class="card electricity">
+        <div class="card-head">
+          <div>
+            <div class="card-label">İstanbul · Şişli · standart mesken tarifesi</div>
+            <h2>Elektrik faturasına tahmini etkisi</h2>
+          </div>
+          <span class="quota-number" id="electricity-updated">EPDK tarifesi hazırlanıyor</span>
+        </div>
+        <div class="electricity-layout">
+          <div class="cost-hero">
+            <div class="card-label">Bu ay PC’nin payı</div>
+            <div class="cost-hero-value"><span id="electricity-month-cost">—</span> <small>₺</small></div>
+            <div class="cost-hero-note" id="electricity-note">Evin diğer tüketimi bilinmediği için düşük ve yüksek kademe aralığı gösterilir.</div>
+            <div class="tariff-badge" id="electricity-tariff">Mesken · tarife bekleniyor</div>
+          </div>
+          <div class="cost-summary">
+            <div class="cost-item">
+              <span>Bugünkü etki</span>
+              <strong id="electricity-today-cost">—</strong>
+              <small id="electricity-today-energy">—</small>
+            </div>
+            <div class="cost-item">
+              <span>Bu güç 30 gün sürerse</span>
+              <strong id="electricity-runrate-cost">—</strong>
+              <small id="electricity-runrate-energy">—</small>
+            </div>
+            <div class="cost-item">
+              <span>PC’nin yıllık çalışma hızı</span>
+              <strong id="electricity-annual-energy">—</strong>
+              <small id="electricity-sktt">SKTT karşılaştırması hazırlanıyor</small>
+            </div>
+          </div>
+        </div>
+        <div class="cost-history">
+          <div class="cost-history-head"><span>Gün</span><span>Enerji</span><span style="text-align:right">Fatura etkisi</span></div>
+          <div id="electricity-history"><div class="empty">Günlük maliyet geçmişi hazırlanıyor…</div></div>
+        </div>
+        <div class="cost-source" id="electricity-source">Akıllı priz bağlı değildir; değerler donanım sensörlerinden hesaplanan tahmini priz tüketimidir.</div>
       </article>
 
       <article class="card processes-card">
@@ -755,6 +827,15 @@
     const hasNumber = (value) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
     const formatTemperature = (value) => hasNumber(value) ? `${Number(value).toFixed(0)}°C` : "Sensör yok";
     const formatKWh = (value) => hasNumber(value) ? `${Number(value).toFixed(Number(value) < 1 ? 3 : 2)} kWh` : "—";
+    const moneyNumber = new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const formatTry = (value) => hasNumber(value) ? `₺${moneyNumber.format(Number(value))}` : "—";
+    const formatCostRange = (impact, includeSymbol = true) => {
+      const low = Number(impact?.lowTierTry);
+      const high = Number(impact?.highTierTry);
+      if (!Number.isFinite(low) || !Number.isFinite(high)) return "—";
+      const range = `${moneyNumber.format(low)}–${moneyNumber.format(high)}`;
+      return includeSymbol ? `₺${range}` : range;
+    };
     const formatPower = (value, estimated = false) =>
       hasNumber(value) ? `${Number(value).toFixed(0)} W${estimated ? " tah." : ""}` : "Sensör yok";
     const formatUptime = (seconds) => {
@@ -854,6 +935,46 @@
         $("power-method").textContent = "CPU, GPU, RAM, disk ve ağ telemetrisi henüz hazır değil.";
         for (const id of ["cpu-load", "gpu-load", "memory-load", "disk-load"]) $(id).textContent = "—";
         for (const id of ["cpu-meter", "gpu-meter", "memory-meter", "disk-meter"]) setMeter(id, 0);
+      }
+
+      const electricity = data.electricity || {};
+      const tariff = electricity.tariff || {};
+      if (electricity.available) {
+        $("electricity-updated").textContent = `${tariff.distributionRegion || "İstanbul"} · ${tariff.effectiveFrom || "güncel"}`;
+        $("electricity-month-cost").textContent = formatCostRange(electricity.month, false);
+        $("electricity-note").textContent = electricity.note || "PC tüketiminin tahmini fatura payı.";
+        $("electricity-tariff").textContent =
+          `Düşük ${formatTry(tariff.lowTierTryPerKWh)}/kWh · Yüksek ${formatTry(tariff.highTierTryPerKWh)}/kWh · ${tariff.lowTierDailyKWh || 8} kWh/gün`;
+        $("electricity-today-cost").textContent = formatCostRange(electricity.today);
+        $("electricity-today-energy").textContent =
+          `${formatKWh(electricity.today?.kWh)} · şu yükte saatte ${formatCostRange(electricity.currentHour)}`;
+        $("electricity-runrate-cost").textContent = formatCostRange(electricity.runRate30Days);
+        $("electricity-runrate-energy").textContent = `${formatKWh(electricity.runRate30Days?.kWh)} · mevcut güç 7/24 sürerse`;
+        $("electricity-annual-energy").textContent = formatKWh(electricity.runRateAnnual?.kWh);
+        $("electricity-sktt").textContent =
+          `PC tek başına ${Number(tariff.skttAnnualKWh || 4000).toLocaleString("tr-TR")} kWh/yıl sınırının %${Number(electricity.runRateAnnual?.skttPercent || 0).toFixed(1)}’i · ev toplamı belirler`;
+
+        const costDays = Array.isArray(electricity.dailyHistory) ? electricity.dailyHistory.slice(-14).reverse() : [];
+        $("electricity-history").innerHTML = costDays.length ? costDays.map(day => {
+          const date = new Date(`${day.date}T12:00:00+03:00`);
+          const dateLabel = Number.isNaN(date.getTime())
+            ? day.date
+            : date.toLocaleDateString("tr-TR", { day: "2-digit", month: "short", weekday: "short" });
+          return `<div class="cost-day">
+            <span class="cost-day-date">${escapeHtml(dateLabel)}</span>
+            <span>${formatKWh(day.kWh)}</span>
+            <span class="cost-day-range">${formatCostRange(day)}</span>
+          </div>`;
+        }).join("") : '<div class="empty">İlk günlük kayıt oluşturuluyor…</div>';
+        $("electricity-source").textContent =
+          `${tariff.sourceName || "EPDK"} · ${tariff.subscriberGroup || "Mesken"} · vergiler dâhil yaklaşık kademe fiyatları. Akıllı priz bağlı değildir; sabit ücret ve evin diğer tüketimi bu PC payına eklenmez.`;
+      } else {
+        $("electricity-updated").textContent = "Enerji sensörü bekleniyor";
+        $("electricity-month-cost").textContent = "—";
+        $("electricity-today-cost").textContent = "—";
+        $("electricity-runrate-cost").textContent = "—";
+        $("electricity-annual-energy").textContent = "—";
+        $("electricity-history").innerHTML = '<div class="empty">Enerji telemetrisi henüz hazır değil.</div>';
       }
 
       const power = data.power || {};

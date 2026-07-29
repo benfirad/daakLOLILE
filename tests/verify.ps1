@@ -73,6 +73,9 @@ foreach ($required in @(
     'power-manager.ps1',
     'memory-manager.ps1',
     'volunteer-status.json',
+    'electricityCostStatus',
+    'lowTierTryPerKWh',
+    'skttAnnualKWh',
     'friendlyTorLogs',
     'No circuits are opened'
 )) {
@@ -129,6 +132,9 @@ foreach ($required in @(
     'data-console-action="boinc-pause"',
     'data-console-action="boinc-headless"',
     'Folding GPU açık/',
+    'Elektrik faturasına tahmini etkisi',
+    'electricity-month-cost',
+    'electricity-history',
     'data-console-action="boinc-restart"',
     'X-daakLOLILE-Token'
 )) {

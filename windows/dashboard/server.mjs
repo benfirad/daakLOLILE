@@ -48,6 +48,18 @@ const consoleToken = randomBytes(32).toString("base64url");
 const consoleRateLimits = new Map();
 const hardwareHistory = [];
 let lastHardwareSample = "";
+const electricityTariff = Object.freeze({
+  location: "İstanbul · Şişli",
+  distributionRegion: "Boğaziçi EDAŞ",
+  subscriberGroup: "Mesken · AG · Tek zamanlı",
+  effectiveFrom: "2026-04-04",
+  lowTierDailyKWh: 8,
+  lowTierTryPerKWh: 3.30,
+  highTierTryPerKWh: 4.89,
+  skttAnnualKWh: 4000,
+  sourceName: "EPDK ulusal tarife",
+  sourceUrl: "https://lisans.epdk.gov.tr/epvys-web/faces/pages/online/tarifeFatura/tarifeFatura.xhtml",
+});
 const allowedConsoleActions = Object.freeze({
   "boinc-status": { label: "BOINC durumunu göster", risk: "read" },
   "boinc-sync": { label: "Science United ile eşitle", risk: "safe" },
@@ -558,6 +570,71 @@ async function hardwareStatus() {
   }
 }
 
+function istanbulDateKey(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Istanbul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const part = type => parts.find(item => item.type === type)?.value || "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+function roundedMoney(value) {
+  return Math.round(Math.max(0, Number(value) || 0) * 100) / 100;
+}
+
+function electricityCostStatus(hardware) {
+  const power = hardware?.power || {};
+  const todayKWh = Math.max(0, Number(power.todayKWh) || 0);
+  const monthKWh = Math.max(0, Number(power.monthKWh) || 0);
+  const wallWatts = Math.max(0, Number(power.wallEstimateWatts) || 0);
+  const currentDate = istanbulDateKey();
+  const byDate = new Map();
+
+  for (const item of Array.isArray(power.dailyHistory) ? power.dailyHistory : []) {
+    const date = String(item?.date || "");
+    const kWh = Math.max(0, Number(item?.kWh) || 0);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) byDate.set(date, kWh);
+  }
+  byDate.set(currentDate, todayKWh);
+
+  const dailyHistory = [...byDate.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-31)
+    .map(([date, kWh]) => ({
+      date,
+      kWh: Math.round(kWh * 10000) / 10000,
+      lowTierTry: roundedMoney(kWh * electricityTariff.lowTierTryPerKWh),
+      highTierTry: roundedMoney(kWh * electricityTariff.highTierTryPerKWh),
+    }));
+
+  const impact = kWh => ({
+    kWh: Math.round(kWh * 10000) / 10000,
+    lowTierTry: roundedMoney(kWh * electricityTariff.lowTierTryPerKWh),
+    highTierTry: roundedMoney(kWh * electricityTariff.highTierTryPerKWh),
+  });
+  const runRate30DaysKWh = wallWatts / 1000 * 24 * 30;
+  const runRateAnnualKWh = wallWatts / 1000 * 24 * 365;
+
+  return {
+    available: hardware?.available === true,
+    estimated: true,
+    tariff: electricityTariff,
+    currentHour: impact(wallWatts / 1000),
+    today: impact(todayKWh),
+    month: impact(monthKWh),
+    runRate30Days: impact(runRate30DaysKWh),
+    runRateAnnual: {
+      ...impact(runRateAnnualKWh),
+      skttPercent: Math.round(runRateAnnualKWh / electricityTariff.skttAnnualKWh * 1000) / 10,
+    },
+    dailyHistory,
+    note: "Bu yalnızca PC'nin tahmini payıdır. Evin diğer tüketimi bilinmediği için gerçek faturadaki kademe düşük-yüksek aralığıyla gösterilir; akıllı priz bağlı değildir.",
+  };
+}
+
 async function powerStatus() {
   try {
     const value = JSON.parse((await readFile(powerStatusPath, "utf8")).replace(/^\uFEFF/, ""));
@@ -795,6 +872,7 @@ async function buildStatus(settingsAllowed = false, powerAllowed = false, consol
   const rateBytes = parseByteRate(configValue(config, "RelayBandwidthRate"));
   const burstBytes = parseByteRate(configValue(config, "RelayBandwidthBurst"));
   const total = traffic.read + traffic.write;
+  const electricity = electricityCostStatus(hardware);
 
   return {
     updatedAt: new Date().toISOString(),
@@ -820,6 +898,7 @@ async function buildStatus(settingsAllowed = false, powerAllowed = false, consol
     consensus,
     snowflake,
     hardware,
+    electricity,
     power,
     memoryMaintenance,
     volunteer,

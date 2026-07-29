@@ -81,6 +81,12 @@ Güç kaynağındaki 650 W gibi değerler anlık tüketim değil, azami kapasite
 
 Gerçek priz tüketimi için yerel API sunan güvenilir bir akıllı priz veya harici güç ölçer gerekir.
 
+## Elektrik faturası tahmini
+
+Panel, 31 günlük enerji geçmişini bilgisayarda tutar ve PC'nin İstanbul/Şişli'deki standart mesken faturasına tahmini katkısını hesaplar. Temmuz 2026 profili, EPDK'nın 4 Nisan 2026'dan itibaren geçerli ulusal düşük/yüksek mesken kademelerini vergiler dâhil yaklaşık fiyat aralığıyla kullanır.
+
+daakLOLILE evdeki diğer cihazların sayaç tüketimini göremediği için tek ve kesin bir fatura tutarı iddia etmez. PC payını düşük/yüksek kademe aralığıyla; bugün, ay başından beri, mevcut güç 30 gün sürerse, günlük geçmiş ve PC'nin tek başına 4.000 kWh/yıl SKTT sınırına oranı olarak gösterir. EPDK yeni tarife yayımladığında `windows/dashboard/server.mjs` içindeki tarife sabitleri güncellenmelidir.
+
 ## Kaldırma
 
 Yönetici PowerShell:

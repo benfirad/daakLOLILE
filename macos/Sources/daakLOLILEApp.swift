@@ -165,6 +165,38 @@ private struct RelayStatus: Decodable {
         let network: NetworkGroup?
     }
 
+    struct Electricity: Decodable {
+        struct Tariff: Decodable {
+            let location: String
+            let subscriberGroup: String
+            let effectiveFrom: String
+            let lowTierDailyKWh: Double
+            let lowTierTryPerKWh: Double
+            let highTierTryPerKWh: Double
+            let skttAnnualKWh: Double
+        }
+
+        struct Impact: Decodable {
+            let kWh: Double
+            let lowTierTry: Double
+            let highTierTry: Double
+        }
+
+        struct AnnualImpact: Decodable {
+            let kWh: Double
+            let lowTierTry: Double
+            let highTierTry: Double
+            let skttPercent: Double
+        }
+
+        let available: Bool
+        let tariff: Tariff
+        let today: Impact
+        let month: Impact
+        let runRate30Days: Impact
+        let runRateAnnual: AnnualImpact
+    }
+
     let updatedAt: String
     let permissions: Permissions?
     let service: Service
@@ -176,6 +208,7 @@ private struct RelayStatus: Decodable {
     let snowflake: Snowflake?
     let support: Support?
     let hardware: Hardware?
+    let electricity: Electricity?
     let power: PowerMode?
     let memoryMaintenance: MemoryMaintenance?
     let volunteer: Volunteer?
@@ -346,6 +379,10 @@ private final class RelayMonitor: ObservableObject {
         return String(format: "%.0f W%@", value, estimated ? " tah." : "")
     }
 
+    static func formatCostRange(low: Double, high: Double) -> String {
+        String(format: "₺%.2f–%.2f", max(0, low), max(0, high))
+    }
+
     static func formatRate(_ bytes: Double?) -> String {
         "\(formatBytes(max(0, bytes ?? 0)))/sn"
     }
@@ -497,6 +534,55 @@ private struct RelayMenuView: View {
                 }
 
                 Divider()
+
+                if let electricity = status.electricity, electricity.available {
+                    VStack(alignment: .leading, spacing: 9) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Elektrik faturası · bu ay")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(RelayMonitor.formatCostRange(
+                                    low: electricity.month.lowTierTry,
+                                    high: electricity.month.highTierTry
+                                ))
+                                .font(.headline.monospacedDigit())
+                            }
+                            Spacer()
+                            Text(String(format: "%.3f kWh", electricity.month.kWh))
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+
+                        MetricRow(
+                            title: "Bugün",
+                            value: RelayMonitor.formatCostRange(
+                                low: electricity.today.lowTierTry,
+                                high: electricity.today.highTierTry
+                            )
+                        )
+                        MetricRow(
+                            title: "Bu güç 30 gün sürerse",
+                            value: RelayMonitor.formatCostRange(
+                                low: electricity.runRate30Days.lowTierTry,
+                                high: electricity.runRate30Days.highTierTry
+                            )
+                        )
+                        MetricRow(
+                            title: "Yıllık çalışma hızı",
+                            value: String(
+                                format: "%.0f kWh · SKTT %%%.1f",
+                                electricity.runRateAnnual.kWh,
+                                electricity.runRateAnnual.skttPercent
+                            )
+                        )
+                        Text("\(electricity.tariff.location) · düşük/yüksek mesken kademesi · akıllı priz yok, PC payı tahminidir.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Divider()
+                }
 
                 if let power = status.power, power.available {
                     VStack(alignment: .leading, spacing: 9) {

@@ -131,6 +131,12 @@ daakLOLILE uses real component sensors where LibreHardwareMonitor exposes them. 
 
 For accurate whole-PC energy measurement, use a reputable external smart plug or power meter with local API access.
 
+## Electricity bill estimate
+
+The dashboard keeps a 31-day local energy ledger and estimates the PC's contribution to a standard Istanbul/Şişli residential bill. The bundled July 2026 profile uses the EPDK national low/high residential tiers effective from 4 April 2026, including an approximate tax-inclusive price range.
+
+Because daakLOLILE cannot see the rest of the home's meter, it does not claim a single exact bill amount. It shows the PC contribution as a low-tier/high-tier range, along with today's cost, month-to-date cost, a 30-day run-rate, daily history, and a PC-only comparison with the 4,000 kWh/year SKTT threshold. Tariffs are time-sensitive; update the constants in `windows/dashboard/server.mjs` when EPDK publishes a new national tariff.
+
 ## Data and ports
 
 | Item | Default |

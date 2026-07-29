@@ -35,6 +35,13 @@ try {
     if (-not $status.permissions.console -or -not $status.control.token) {
         throw 'Console token was not issued to loopback.'
     }
+    $tariff = $status.electricity.tariff
+    $lowTier = [double]$tariff.lowTierTryPerKWh
+    $highTier = [double]$tariff.highTierTryPerKWh
+    $skttLimit = [double]$tariff.skttAnnualKWh
+    if ($tariff.effectiveFrom -ne '2026-04-04' -or $lowTier -le 0 -or $highTier -le $lowTier -or $skttLimit -ne 4000) {
+        throw 'Electricity tariff status is missing or invalid.'
+    }
 
     $body = @{ action = 'boinc-status' } | ConvertTo-Json -Compress
     $result = Invoke-RestMethod `
