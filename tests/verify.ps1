@@ -119,9 +119,13 @@ foreach ($required in @(
     'Toggle-WidgetVisibility',
     'ContextMenuStrip',
     'OnExplicitShutdown',
-    'application.Run($window)',
+    'application.Run()',
     'New-Object Drawing.Bitmap 32, 32',
-    'AntiAliasGridFit'
+    'AntiAliasGridFit',
+    'WattBadgeText',
+    'FontSize="29"',
+    'Move-WattBadgeToTray',
+    'Set-LargeWattBadge'
 )) {
     if ($widgetSource -notmatch [regex]::Escape($required)) {
         throw "Missing minimal resilient widget feature: $required"
