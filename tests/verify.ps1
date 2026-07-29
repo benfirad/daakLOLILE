@@ -74,6 +74,9 @@ foreach ($required in @(
     'memory-manager.ps1',
     'volunteer-status.json',
     'electricityCostStatus',
+    'systemStatusCache',
+    'snowflakeStatusCache',
+    'onionooPending',
     'lowTierTryPerKWh',
     'skttAnnualKWh',
     'friendlyTorLogs',
@@ -101,6 +104,21 @@ foreach ($required in @('targetCpus','command === "eco"','gpuMatches')) {
 $widgetSource = Get-Content -LiteralPath (Join-Path $repoRoot 'windows\widget.ps1') -Raw
 if ($widgetSource -match '[^\x00-\x7F]' -or $widgetSource -notmatch 'Convert-UnicodeLiteral') {
     throw 'Widget source must remain ASCII-only so Windows PowerShell 5.1 cannot corrupt its Unicode UI text.'
+}
+foreach ($required in @(
+    'Width="252" Height="132"',
+    'UsageMetaText',
+    'NetworkText',
+    'ResourceText',
+    'widgetFailures',
+    'Windows.Forms.NotifyIcon',
+    'Set-TrayState',
+    'Toggle-WidgetVisibility',
+    'ContextMenuStrip'
+)) {
+    if ($widgetSource -notmatch [regex]::Escape($required)) {
+        throw "Missing minimal resilient widget feature: $required"
+    }
 }
 
 $installerSource = Get-Content -LiteralPath (Join-Path $repoRoot 'windows\install.ps1') -Raw

@@ -40,6 +40,31 @@ const orPort = Number(process.env.TOR_OR_PORT || 9001);
 const configuredServiceName = String(process.env.TOR_SERVICE_NAME || "tor");
 const torServiceName = /^[A-Za-z0-9_.-]+$/.test(configuredServiceName) ? configuredServiceName : "tor";
 let onionooCache = { checkedAt: 0, found: false, running: false, flags: [] };
+let onionooPending = null;
+let systemStatusCache = {
+  checkedAt: 0,
+  value: { running: false, startMode: "Unknown", listening: false, localIp: "", tailscaleIp: "" },
+  pending: null,
+};
+let snowflakeStatusCache = {
+  checkedAt: 0,
+  value: {
+    running: false,
+    capacity: 100,
+    natType: "checking",
+    traffic: {
+      inbound: 0,
+      outbound: 0,
+      total: 0,
+      connections: 0,
+      timeouts: 0,
+      connectionUnit: "completed_sessions",
+      uniquePeopleAvailable: false,
+    },
+    logs: [],
+  },
+  pending: null,
+};
 let controlCache = { checkedAt: 0, value: null, pending: null };
 const controlCacheLifetimeMs = 60000;
 let settingsBusy = false;
@@ -317,7 +342,7 @@ async function relayFingerprint() {
   return fromFile.toUpperCase();
 }
 
-async function systemStatus() {
+async function querySystemStatus() {
   const command = [
     `$s=Get-CimInstance Win32_Service -Filter "Name='${torServiceName}'" -ErrorAction SilentlyContinue`,
     `$p=Get-NetTCPConnection -LocalPort ${orPort} -State Listen -ErrorAction SilentlyContinue`,
@@ -336,28 +361,53 @@ async function systemStatus() {
   }
 }
 
+async function systemStatus() {
+  if (Date.now() - systemStatusCache.checkedAt >= 15000 && !systemStatusCache.pending) {
+    systemStatusCache.pending = querySystemStatus()
+      .then(value => {
+        systemStatusCache.value = value;
+        systemStatusCache.checkedAt = Date.now();
+      })
+      .catch(() => {
+        systemStatusCache.checkedAt = Date.now();
+      })
+      .finally(() => {
+        systemStatusCache.pending = null;
+      });
+  }
+  return systemStatusCache.value;
+}
+
+async function queryConsensusStatus() {
+  const fingerprint = await relayFingerprint();
+  if (!fingerprint) return { checkedAt: Date.now(), found: false, running: false, flags: [] };
+  const response = await fetch(`https://onionoo.torproject.org/details?lookup=${fingerprint}`, {
+    signal: AbortSignal.timeout(5000),
+    headers: { "User-Agent": "daakLOLILE/2.0" },
+  });
+  const body = await response.json();
+  const relay = body.relays?.[0];
+  return {
+    checkedAt: Date.now(),
+    found: Boolean(relay),
+    running: Boolean(relay?.running),
+    flags: relay?.flags ?? [],
+  };
+}
+
 async function consensusStatus() {
   if (Date.now() - onionooCache.checkedAt < 300000) return onionooCache;
-  const fingerprint = await relayFingerprint();
-  if (!fingerprint) {
-    onionooCache = { checkedAt: Date.now(), found: false, running: false, flags: [] };
-    return onionooCache;
-  }
-  try {
-    const response = await fetch(`https://onionoo.torproject.org/details?lookup=${fingerprint}`, {
-      signal: AbortSignal.timeout(5000),
-      headers: { "User-Agent": "daakLOLILE/2.0" },
-    });
-    const body = await response.json();
-    const relay = body.relays?.[0];
-    onionooCache = {
-      checkedAt: Date.now(),
-      found: Boolean(relay),
-      running: Boolean(relay?.running),
-      flags: relay?.flags ?? [],
-    };
-  } catch {
-    onionooCache = { ...onionooCache, checkedAt: Date.now() };
+  if (!onionooPending) {
+    onionooPending = queryConsensusStatus()
+      .then(value => {
+        onionooCache = value;
+      })
+      .catch(() => {
+        onionooCache = { ...onionooCache, checkedAt: Date.now() };
+      })
+      .finally(() => {
+        onionooPending = null;
+      });
   }
   return onionooCache;
 }
@@ -399,22 +449,26 @@ async function controlInfo() {
   if (controlCache.value && Date.now() - controlCache.checkedAt < controlCacheLifetimeMs) {
     return controlCache.value;
   }
-  if (controlCache.pending) return controlCache.pending;
-  controlCache.pending = queryControlInfo()
-    .then(value => {
-      controlCache.value = value;
-      controlCache.checkedAt = Date.now();
-      return value;
-    })
-    .finally(() => {
-      controlCache.pending = null;
-    });
-  return controlCache.pending;
+  if (!controlCache.pending) {
+    controlCache.pending = queryControlInfo()
+      .then(value => {
+        controlCache.value = value;
+        controlCache.checkedAt = Date.now();
+      })
+      .catch(() => {
+        controlCache.checkedAt = Date.now();
+      })
+      .finally(() => {
+        controlCache.pending = null;
+      });
+  }
+  return controlCache.value;
 }
 
 async function monthlyTraffic(fallbackRead, fallbackWrite) {
   let live;
-  try { live = await controlInfo(); } catch { return { read: fallbackRead, write: fallbackWrite, source: "history" }; }
+  try { live = await controlInfo(); } catch {}
+  if (!live) return { read: fallbackRead, write: fallbackWrite, source: "history" };
 
   let tracker = {};
   try { tracker = JSON.parse(await readFile(trafficPath, "utf8")); } catch {}
@@ -502,7 +556,7 @@ async function snowflakeMonthly(live) {
   return { inbound, outbound, total: inbound + outbound, connections, timeouts };
 }
 
-async function snowflakeStatus() {
+async function querySnowflakeStatus() {
   const log = await text(snowflakeLogPath);
   let running = false;
   let live = null;
@@ -535,6 +589,23 @@ async function snowflakeStatus() {
     },
     logs: log.split(/\r?\n/).filter(Boolean).slice(-12),
   };
+}
+
+async function snowflakeStatus() {
+  if (Date.now() - snowflakeStatusCache.checkedAt >= 10000 && !snowflakeStatusCache.pending) {
+    snowflakeStatusCache.pending = querySnowflakeStatus()
+      .then(value => {
+        snowflakeStatusCache.value = value;
+        snowflakeStatusCache.checkedAt = Date.now();
+      })
+      .catch(() => {
+        snowflakeStatusCache.checkedAt = Date.now();
+      })
+      .finally(() => {
+        snowflakeStatusCache.pending = null;
+      });
+  }
+  return snowflakeStatusCache.value;
 }
 
 async function hardwareStatus() {

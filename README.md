@@ -11,6 +11,8 @@
 
 daakLOLILE combines live Tor middle-relay traffic, Snowflake proxy statistics, Folding@home, BOINC, RIPE Atlas, CPU/GPU/RAM/disk/network telemetry, estimated power use, safe automatic peak-hour power modes, a small Windows desktop widget, and a macOS menu bar app. Remote access and power control are designed for a private [Tailscale](https://tailscale.com/) network.
 
+The compact desktop widget keeps only total support, Tor/Snowflake health, volunteer projects, power mode, CPU, and GPU visible. Its dynamic Windows notification-area icon remains available when the card is hidden and provides show/hide, open-dashboard, and exit actions. Slow Windows-service and Tor-directory checks refresh in the background, so they cannot stall the local panel API or cause false disconnect warnings.
+
 ![daakLOLILE dashboard preview](docs/daaklolile-dashboard.svg)
 
 ## Why daakLOLILE?
