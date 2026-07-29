@@ -122,13 +122,18 @@ foreach ($required in @(
     'application.Run()',
     'New-Object Drawing.Bitmap 32, 32',
     'AntiAliasGridFit',
-    'WattBadgeText',
-    'FontSize="29"',
-    'Move-WattBadgeToTray',
-    'Set-LargeWattBadge'
+    '$fontSize = 29.0',
+    'HighQualityBicubic',
+    '$format.FormatFlags = [Drawing.StringFormatFlags]::NoWrap',
+    '$sourceWidth = if ($Value.Length -ge 4)'
 )) {
     if ($widgetSource -notmatch [regex]::Escape($required)) {
         throw "Missing minimal resilient widget feature: $required"
+    }
+}
+foreach ($forbidden in @('WattBadgeText', 'wattBadgeWindow', 'Set-LargeWattBadge', 'Move-WattBadgeToTray')) {
+    if ($widgetSource -match [regex]::Escape($forbidden)) {
+        throw "Standalone watt overlay must remain removed: $forbidden"
     }
 }
 

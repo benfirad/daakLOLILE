@@ -89,28 +89,6 @@ foreach ($name in @(
     Set-Variable -Name ($name.Substring(0,1).ToLower() + $name.Substring(1)) -Value $window.FindName($name)
 }
 
-$wattBadgeXaml = @'
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Width="104" Height="48" FontFamily="Segoe UI"
-        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        Topmost="True" ShowActivated="False" ShowInTaskbar="False" ResizeMode="NoResize">
-  <Grid Background="#01000000" Cursor="Hand">
-    <TextBlock x:Name="WattBadgeText" Text="-- W" Foreground="#64D692"
-               FontSize="29" FontWeight="Bold" HorizontalAlignment="Center"
-               VerticalAlignment="Center" TextOptions.TextFormattingMode="Display">
-      <TextBlock.Effect>
-        <DropShadowEffect BlurRadius="5" ShadowDepth="1" Opacity="0.95" Color="#08060A"/>
-      </TextBlock.Effect>
-    </TextBlock>
-  </Grid>
-</Window>
-'@
-
-$wattBadgeReader = New-Object System.Xml.XmlNodeReader ([xml]$wattBadgeXaml)
-$wattBadgeWindow = [Windows.Markup.XamlReader]::Load($wattBadgeReader)
-$wattBadgeText = $wattBadgeWindow.FindName('WattBadgeText')
-
 function Format-Bytes([double]$bytes) {
     $units = @('B', 'KB', 'MB', 'GB', 'TB')
     $index = 0
@@ -149,28 +127,49 @@ function New-StatusIcon([string]$Color) {
 }
 
 function New-NumericStatusIcon([string]$Value, [string]$Color) {
-    $bitmap = New-Object Drawing.Bitmap 32, 32
-    $graphics = [Drawing.Graphics]::FromImage($bitmap)
+    $sourceWidth = if ($Value.Length -ge 4) {
+        72
+    } elseif ($Value.Length -ge 3) {
+        62
+    } elseif ($Value.Length -ge 2) {
+        44
+    } else {
+        32
+    }
+    $sourceBitmap = New-Object Drawing.Bitmap $sourceWidth, 32
+    $graphics = [Drawing.Graphics]::FromImage($sourceBitmap)
     $graphics.SmoothingMode = [Drawing.Drawing2D.SmoothingMode]::AntiAlias
     $graphics.TextRenderingHint = [Drawing.Text.TextRenderingHint]::AntiAliasGridFit
     $graphics.Clear([Drawing.Color]::Transparent)
     $foreground = New-Object Drawing.SolidBrush ([Drawing.ColorTranslator]::FromHtml($Color))
     $shadow = New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(235, 8, 6, 10))
-    $fontSize = if ($Value.Length -ge 3) { 14.0 } else { 17.0 }
+    $fontSize = 29.0
     $font = New-Object Drawing.Font 'Arial', $fontSize, ([Drawing.FontStyle]::Bold), ([Drawing.GraphicsUnit]::Pixel)
     $format = New-Object Drawing.StringFormat
     $format.Alignment = [Drawing.StringAlignment]::Center
     $format.LineAlignment = [Drawing.StringAlignment]::Center
-    $graphics.DrawString($Value, $font, $shadow, [Drawing.RectangleF]::new(1, 1, 32, 32), $format)
-    $graphics.DrawString($Value, $font, $foreground, [Drawing.RectangleF]::new(0, 0, 32, 32), $format)
+    $format.FormatFlags = [Drawing.StringFormatFlags]::NoWrap
+    $graphics.DrawString($Value, $font, $shadow, [Drawing.RectangleF]::new(1, 1, $sourceWidth, 32), $format)
+    $graphics.DrawString($Value, $font, $foreground, [Drawing.RectangleF]::new(0, 0, $sourceWidth, 32), $format)
+    $bitmap = New-Object Drawing.Bitmap 32, 32
+    $outputGraphics = [Drawing.Graphics]::FromImage($bitmap)
+    $outputGraphics.InterpolationMode = [Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+    $outputGraphics.DrawImage(
+        $sourceBitmap,
+        [Drawing.Rectangle]::new(0, 0, 32, 32),
+        [Drawing.Rectangle]::new(0, 0, $sourceWidth, 32),
+        [Drawing.GraphicsUnit]::Pixel
+    )
     $handle = $bitmap.GetHicon()
     $icon = [Drawing.Icon]::FromHandle($handle).Clone()
     [void][daakLOLILEIconNative]::DestroyIcon($handle)
+    $outputGraphics.Dispose()
     $format.Dispose()
     $font.Dispose()
     $shadow.Dispose()
     $foreground.Dispose()
     $graphics.Dispose()
+    $sourceBitmap.Dispose()
     $bitmap.Dispose()
     return $icon
 }
@@ -244,23 +243,15 @@ function Set-PowerTrayState([string]$Value, [string]$Color, [string]$Text) {
     $powerNotifyIcon.Text = $safeText
 }
 
-function Set-LargeWattBadge([string]$Text, [string]$Color, [string]$ToolTip) {
-    $wattBadgeText.Text = $Text
-    $wattBadgeText.Foreground = [Windows.Media.BrushConverter]::new().ConvertFromString($Color)
-    $wattBadgeWindow.ToolTip = $ToolTip
-}
-
 function Toggle-WidgetVisibility {
     if ($window.IsVisible) {
         $window.Hide()
-        Move-WattBadgeToTray
     }
     else {
         Ensure-WidgetVisible
         $window.Show()
         $window.Topmost = $true
         $window.Activate() | Out-Null
-        Move-WattBadgeToTray
     }
 }
 
@@ -330,11 +321,9 @@ function Update-Widget {
             $resourceText.Text = "$wallWatts W $modeLabel $($ui.MiddleDot) CPU %$cpuPercent $($ui.MiddleDot) GPU $gpuValue"
             $powerToolTip = "daakLOLILE | $wallWatts W $modeLabel | CPU %$cpuPercent | GPU $gpuValue"
             Set-PowerTrayState $powerIconValue $powerColor $powerToolTip
-            Set-LargeWattBadge "$wallWatts W" $powerColor $powerToolTip
         } else {
             $resourceText.Text = "PC $($ui.Dash)"
             Set-PowerTrayState '--' '#E9B95D' 'daakLOLILE | Power data pending'
-            Set-LargeWattBadge '-- W' '#E9B95D' 'daakLOLILE | Power data pending'
         }
         $trayColor = if ($supportOnline) { '#64D692' } else { '#EF7D7D' }
         Set-TrayState $trayColor "daakLOLILE | $($statusText.Text) | $($usageText.Text) | $($resourceText.Text)"
@@ -346,7 +335,6 @@ function Update-Widget {
             $statusDot.Fill = '#E9B95D'
             Set-TrayState '#E9B95D' "daakLOLILE | $($ui.Reconnecting)"
             Set-PowerTrayState '--' '#E9B95D' "daakLOLILE | $($ui.Reconnecting)"
-            Set-LargeWattBadge '-- W' '#E9B95D' "daakLOLILE | $($ui.Reconnecting)"
             return
         }
         $statusDot.Fill = '#EF7D7D'
@@ -357,7 +345,6 @@ function Update-Widget {
         $resourceText.Text = "PC $($ui.Dash)"
         Set-TrayState '#EF7D7D' "daakLOLILE | $($ui.Reconnecting)"
         Set-PowerTrayState '--' '#EF7D7D' "daakLOLILE | $($ui.Reconnecting)"
-        Set-LargeWattBadge '-- W' '#EF7D7D' "daakLOLILE | $($ui.Reconnecting)"
     }
 }
 
@@ -365,21 +352,6 @@ function Move-WidgetToCorner {
     $workArea = [System.Windows.SystemParameters]::WorkArea
     $window.Left = $workArea.Right - $window.Width - 22
     $window.Top = $workArea.Bottom - $window.Height - 22
-}
-
-function Move-WattBadgeToTray {
-    $workArea = [System.Windows.SystemParameters]::WorkArea
-    $wattBadgeWindow.Top = $workArea.Bottom - $wattBadgeWindow.Height - 8
-    if ($window.IsVisible) {
-        $wattBadgeWindow.Left = [Math]::Max(
-            $workArea.Left + 8,
-            $window.Left - $wattBadgeWindow.Width - 10
-        )
-    }
-    else {
-        $wattBadgeWindow.Left = $workArea.Right - $wattBadgeWindow.Width - 8
-    }
-    $wattBadgeWindow.Topmost = $true
 }
 
 function Ensure-WidgetVisible {
@@ -393,26 +365,18 @@ function Ensure-WidgetVisible {
     if ($outside) {
         Move-WidgetToCorner
     }
-    Move-WattBadgeToTray
 }
 
 Move-WidgetToCorner
-Move-WattBadgeToTray
 $window.Add_Loaded({
     Move-WidgetToCorner
-    Move-WattBadgeToTray
     $window.Topmost = $true
     $window.Activate() | Out-Null
-})
-$wattBadgeWindow.Add_Loaded({
-    Move-WattBadgeToTray
-    $wattBadgeWindow.Topmost = $true
 })
 $displaySettingsHandler = [System.EventHandler]{
     $window.Dispatcher.BeginInvoke(
         [Action]{
             Move-WidgetToCorner
-            Move-WattBadgeToTray
             $window.Topmost = $true
         }
     ) | Out-Null
@@ -427,18 +391,9 @@ $window.Add_MouseLeftButtonDown({
     }
 })
 $window.Add_MouseDoubleClick({ Start-Process 'http://127.0.0.1:17657' })
-$wattBadgeWindow.Add_MouseLeftButtonUp({
-    $window.Dispatcher.BeginInvoke([Action]{ Toggle-WidgetVisibility }) | Out-Null
-})
-$wattBadgeText.Add_MouseLeftButtonUp({
-    param($sender, $eventArgs)
-    $eventArgs.Handled = $true
-    $window.Dispatcher.BeginInvoke([Action]{ Toggle-WidgetVisibility }) | Out-Null
-})
 $openButton.Add_Click({ Start-Process 'http://127.0.0.1:17657' })
 $closeButton.Add_Click({
     $window.Hide()
-    Move-WattBadgeToTray
 })
 
 $script:allowClose = $false
@@ -449,13 +404,6 @@ $window.Add_Closing({
         $window.Hide()
     }
 })
-$wattBadgeWindow.Add_Closing({
-    param($sender, $eventArgs)
-    if (-not $script:allowClose) {
-        $eventArgs.Cancel = $true
-    }
-})
-
 $trayMenu = New-Object Windows.Forms.ContextMenuStrip
 $toggleMenuItem = $trayMenu.Items.Add($ui.TrayToggle)
 $openMenuItem = $trayMenu.Items.Add($ui.TrayOpen)
@@ -472,7 +420,6 @@ $exitMenuItem.add_Click({
     $window.Dispatcher.BeginInvoke([Action]{
         $script:allowClose = $true
         $window.Close()
-        $wattBadgeWindow.Close()
         $application.Shutdown()
     }) | Out-Null
 })
@@ -499,7 +446,6 @@ Update-Widget
 $timer.Start()
 try {
     $window.Show()
-    $wattBadgeWindow.Show()
     [void]$application.Run()
 }
 finally {
