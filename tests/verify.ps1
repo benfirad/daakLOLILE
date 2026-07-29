@@ -113,6 +113,9 @@ foreach ($required in @(
     'widgetFailures',
     'Windows.Forms.NotifyIcon',
     'Set-TrayState',
+    'New-NumericStatusIcon',
+    'Set-PowerTrayState',
+    'powerNotifyIcon',
     'Toggle-WidgetVisibility',
     'ContextMenuStrip'
 )) {

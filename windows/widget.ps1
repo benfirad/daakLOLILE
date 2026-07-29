@@ -123,6 +123,36 @@ function New-StatusIcon([string]$Color) {
     return $icon
 }
 
+function New-NumericStatusIcon([string]$Value, [string]$Color) {
+    $bitmap = New-Object Drawing.Bitmap 16, 16
+    $graphics = [Drawing.Graphics]::FromImage($bitmap)
+    $graphics.SmoothingMode = [Drawing.Drawing2D.SmoothingMode]::AntiAlias
+    $graphics.TextRenderingHint = [Drawing.Text.TextRenderingHint]::SingleBitPerPixelGridFit
+    $graphics.Clear([Drawing.Color]::Transparent)
+    $background = New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(238, 24, 20, 28))
+    $border = New-Object Drawing.Pen ([Drawing.ColorTranslator]::FromHtml($Color)), 1
+    $foreground = New-Object Drawing.SolidBrush ([Drawing.ColorTranslator]::FromHtml($Color))
+    $graphics.FillRectangle($background, 1, 1, 14, 14)
+    $graphics.DrawRectangle($border, 1, 1, 13, 13)
+    $fontSize = if ($Value.Length -ge 3) { 6.0 } else { 7.0 }
+    $font = New-Object Drawing.Font 'Arial', $fontSize, ([Drawing.FontStyle]::Bold), ([Drawing.GraphicsUnit]::Pixel)
+    $format = New-Object Drawing.StringFormat
+    $format.Alignment = [Drawing.StringAlignment]::Center
+    $format.LineAlignment = [Drawing.StringAlignment]::Center
+    $graphics.DrawString($Value, $font, $foreground, [Drawing.RectangleF]::new(1, 1, 14, 14), $format)
+    $handle = $bitmap.GetHicon()
+    $icon = [Drawing.Icon]::FromHandle($handle).Clone()
+    [void][daakLOLILEIconNative]::DestroyIcon($handle)
+    $format.Dispose()
+    $font.Dispose()
+    $foreground.Dispose()
+    $border.Dispose()
+    $background.Dispose()
+    $graphics.Dispose()
+    $bitmap.Dispose()
+    return $icon
+}
+
 $ui = @{
     ActiveOpen = Convert-UnicodeLiteral 'Aktif \u00B7 NAT a\u00E7\u0131k'
     ActiveDemand = Convert-UnicodeLiteral 'Aktif \u00B7 talebe g\u00F6re'
@@ -148,6 +178,8 @@ $script:widgetFailures = 0
 $script:lastWidgetSuccess = [DateTime]::MinValue
 $script:trayColor = ''
 $script:trayIconCurrent = $null
+$script:powerTrayKey = ''
+$script:powerTrayIconCurrent = $null
 
 $notifyIcon = New-Object Windows.Forms.NotifyIcon
 $notifyIcon.Text = 'daakLOLILE'
@@ -155,6 +187,13 @@ $notifyIcon.Icon = New-StatusIcon '#E9B95D'
 $script:trayIconCurrent = $notifyIcon.Icon
 $script:trayColor = '#E9B95D'
 $notifyIcon.Visible = $true
+
+$powerNotifyIcon = New-Object Windows.Forms.NotifyIcon
+$powerNotifyIcon.Text = 'daakLOLILE | Power -- W'
+$powerNotifyIcon.Icon = New-NumericStatusIcon '--' '#E9B95D'
+$script:powerTrayIconCurrent = $powerNotifyIcon.Icon
+$script:powerTrayKey = '--|#E9B95D'
+$powerNotifyIcon.Visible = $true
 
 function Set-TrayState([string]$Color, [string]$Text) {
     if ($script:trayColor -ne $Color) {
@@ -167,6 +206,20 @@ function Set-TrayState([string]$Color, [string]$Text) {
     }
     $safeText = if ($Text.Length -gt 63) { $Text.Substring(0, 63) } else { $Text }
     $notifyIcon.Text = $safeText
+}
+
+function Set-PowerTrayState([string]$Value, [string]$Color, [string]$Text) {
+    $key = "$Value|$Color"
+    if ($script:powerTrayKey -ne $key) {
+        $newIcon = New-NumericStatusIcon $Value $Color
+        $oldIcon = $script:powerTrayIconCurrent
+        $powerNotifyIcon.Icon = $newIcon
+        $script:powerTrayIconCurrent = $newIcon
+        $script:powerTrayKey = $key
+        if ($oldIcon) { $oldIcon.Dispose() }
+    }
+    $safeText = if ($Text.Length -gt 63) { $Text.Substring(0, 63) } else { $Text }
+    $powerNotifyIcon.Text = $safeText
 }
 
 function Toggle-WidgetVisibility {
@@ -227,14 +280,28 @@ function Update-Widget {
                 'balanced' { 'DENGE' }
                 default { $ui.Dash }
             }
+            $powerColor = switch ([string]$data.power.effectiveMode) {
+                'eco' { '#64D692' }
+                'performance' { '#E9B95D' }
+                default { '#C69BEA' }
+            }
+            $wallWatts = [Math]::Max(0, [Math]::Round([double]$data.hardware.power.wallEstimateWatts))
+            $powerIconValue = if ($wallWatts -ge 1000) {
+                '{0:0.#}k' -f ($wallWatts / 1000)
+            } else {
+                [string]$wallWatts
+            }
             $gpuValue = if ($null -ne $data.hardware.gpu.temperatureC) {
                 "$([Math]::Round([double]$data.hardware.gpu.temperatureC))$($ui.Degree)"
             } else {
                 "%$([Math]::Round([double]$data.hardware.gpu.loadPercent))"
             }
-            $resourceText.Text = "$([Math]::Round([double]$data.hardware.power.wallEstimateWatts)) W $modeLabel $($ui.MiddleDot) CPU %$([Math]::Round([double]$data.hardware.cpu.loadPercent)) $($ui.MiddleDot) GPU $gpuValue"
+            $cpuPercent = [Math]::Round([double]$data.hardware.cpu.loadPercent)
+            $resourceText.Text = "$wallWatts W $modeLabel $($ui.MiddleDot) CPU %$cpuPercent $($ui.MiddleDot) GPU $gpuValue"
+            Set-PowerTrayState $powerIconValue $powerColor "daakLOLILE | $wallWatts W $modeLabel | CPU %$cpuPercent | GPU $gpuValue"
         } else {
             $resourceText.Text = "PC $($ui.Dash)"
+            Set-PowerTrayState '--' '#E9B95D' 'daakLOLILE | Power data pending'
         }
         $trayColor = if ($supportOnline) { '#64D692' } else { '#EF7D7D' }
         Set-TrayState $trayColor "daakLOLILE | $($statusText.Text) | $($usageText.Text) | $($resourceText.Text)"
@@ -245,6 +312,7 @@ function Update-Widget {
         if ($recentSuccess -or $script:widgetFailures -lt 3) {
             $statusDot.Fill = '#E9B95D'
             Set-TrayState '#E9B95D' "daakLOLILE | $($ui.Reconnecting)"
+            Set-PowerTrayState '--' '#E9B95D' "daakLOLILE | $($ui.Reconnecting)"
             return
         }
         $statusDot.Fill = '#EF7D7D'
@@ -254,6 +322,7 @@ function Update-Widget {
         $networkText.Text = "Tor $($ui.Dash) $($ui.MiddleDot) Snowflake $($ui.Dash)"
         $resourceText.Text = "PC $($ui.Dash)"
         Set-TrayState '#EF7D7D' "daakLOLILE | $($ui.Reconnecting)"
+        Set-PowerTrayState '--' '#EF7D7D' "daakLOLILE | $($ui.Reconnecting)"
     }
 }
 
@@ -318,6 +387,7 @@ $openMenuItem = $trayMenu.Items.Add($ui.TrayOpen)
 [void]$trayMenu.Items.Add((New-Object Windows.Forms.ToolStripSeparator))
 $exitMenuItem = $trayMenu.Items.Add($ui.TrayExit)
 $notifyIcon.ContextMenuStrip = $trayMenu
+$powerNotifyIcon.ContextMenuStrip = $trayMenu
 
 $toggleMenuItem.add_Click({
     $window.Dispatcher.BeginInvoke([Action]{ Toggle-WidgetVisibility }) | Out-Null
@@ -330,6 +400,12 @@ $exitMenuItem.add_Click({
     }) | Out-Null
 })
 $notifyIcon.add_MouseClick({
+    param($sender, $eventArgs)
+    if ($eventArgs.Button -eq [Windows.Forms.MouseButtons]::Left) {
+        $window.Dispatcher.BeginInvoke([Action]{ Toggle-WidgetVisibility }) | Out-Null
+    }
+})
+$powerNotifyIcon.add_MouseClick({
     param($sender, $eventArgs)
     if ($eventArgs.Button -eq [Windows.Forms.MouseButtons]::Left) {
         $window.Dispatcher.BeginInvoke([Action]{ Toggle-WidgetVisibility }) | Out-Null
@@ -349,9 +425,12 @@ try {
 }
 finally {
     $notifyIcon.Visible = $false
+    $powerNotifyIcon.Visible = $false
     $notifyIcon.Dispose()
+    $powerNotifyIcon.Dispose()
     $trayMenu.Dispose()
     if ($script:trayIconCurrent) { $script:trayIconCurrent.Dispose() }
+    if ($script:powerTrayIconCurrent) { $script:powerTrayIconCurrent.Dispose() }
     $widgetMutex.ReleaseMutex()
     $widgetMutex.Dispose()
 }
