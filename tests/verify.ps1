@@ -136,6 +136,7 @@ foreach ($required in @(
     'electricity-month-cost',
     'electricity-history',
     'hourly-energy-chart',
+    'Bu benzersiz kişi sayısı değildir',
     'data-console-action="boinc-restart"',
     'X-daakLOLILE-Token'
 )) {

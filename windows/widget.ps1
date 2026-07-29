@@ -156,7 +156,9 @@ function Update-Widget {
         $progressFill.Width = if ($unlimited) { 246 } else { [Math]::Max(1, 246 * $percent / 100) }
         $progressFill.Opacity = if ($unlimited) { 0.28 } else { 1 }
         $bootstrapText.Text = if ($relayOnline) { "%$($data.bootstrap) · $($data.port.number)" } else { 'Kapalı' }
-        $snowflakeText.Text = if ($snowflakeOnline) { "$([int]$data.snowflake.traffic.connections) kişi" } else { 'Kapalı' }
+        $snowflakeText.Text = if ($snowflakeOnline) {
+            if ($data.snowflake.natType -eq 'unrestricted') { 'Aktif · NAT açık' } else { 'Aktif · talebe göre' }
+        } else { 'Kapalı' }
         $consensusText.Text = if ($data.consensus.running) { 'Listede' } elseif ($data.consensus.found) { 'Bekliyor' } else { 'Henüz yok' }
 
         $projectLabels = @()

@@ -704,7 +704,10 @@ private struct RelayMenuView: View {
                             ? "\(RelayMonitor.formatBytes(status.snowflake?.traffic.total ?? 0)) · aktif"
                             : "Kapalı"
                     )
-                    MetricRow(title: "Yardım edilen bağlantı", value: String(Int(status.snowflake?.traffic.connections ?? 0)))
+                    MetricRow(title: "Eşleşme", value: "Tor talebine göre")
+                    Text("Bağlantı oturumları benzersiz kişi sayısı değildir; gizlilik gereği kişi tahmini gösterilmez.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                     MetricRow(
                         title: "Aylık kota",
                         value: (status.traffic.unlimited ?? (status.traffic.quota <= 0))

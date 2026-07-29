@@ -28,7 +28,8 @@ foreach ($taskName in $tasksToRestart) {
 $files = @(
     'hardware-monitor.ps1',
     'power-manager.ps1',
-    'fah-control.mjs'
+    'fah-control.mjs',
+    'widget.ps1'
 )
 foreach ($file in $files) {
     Copy-Item -LiteralPath (Join-Path $SourceRoot "windows\$file") -Destination (Join-Path $InstallRoot $file) -Force

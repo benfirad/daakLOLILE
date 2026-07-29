@@ -16,12 +16,12 @@ daakLOLILE combines live Tor middle-relay traffic, Snowflake proxy statistics, F
 ## Why daakLOLILE?
 
 - Monitor a Windows Tor **middle/non-exit relay** without exposing an admin panel to the public internet.
-- See relay bandwidth, bootstrap, reachability, consensus status, Snowflake connections, and total contributed traffic.
+- See relay bandwidth, bootstrap, reachability, consensus status, completed Snowflake sessions, and total contributed traffic. Session totals are not presented as unique people.
 - Track CPU, GPU, memory, disks, network throughput, temperatures, component power sensors, and top processes.
 - Keep collecting data before logon by running the Windows tasks as `SYSTEM`.
 - Check the PC and switch power modes from a Mac menu bar app over Tailscale.
 - Track Folding@home work, BOINC projects, and RIPE Atlas measurements without sharing storage.
-- Keep the standalone Snowflake proxy available 24/7 with an unrestricted-NAT health check. Client count is demand-driven by the Tor broker; capacity is a ceiling, not a target.
+- Keep the standalone Snowflake proxy available 24/7 with an unrestricted-NAT health check. Completed-session count is demand-driven by the Tor broker, is not a unique-person count, and capacity is a ceiling rather than a target.
 - Control BOINC from a constrained SYSTEM console over localhost or Tailscale without exposing arbitrary CMD or PowerShell execution.
 - Automatically use an efficient CPU/display profile at night without sleep, hibernation, network shutdown, or service interruption.
 - Keep Tor settings localhost-only while allowing the narrow power-mode endpoint from localhost and Tailscale.

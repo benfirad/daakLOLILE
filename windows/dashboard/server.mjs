@@ -528,7 +528,11 @@ async function snowflakeStatus() {
     running,
     capacity: 100,
     natType: natMatches.at(-1)?.[1]?.toLowerCase() ?? "checking",
-    traffic,
+    traffic: {
+      ...traffic,
+      connectionUnit: "completed_sessions",
+      uniquePeopleAvailable: false,
+    },
     logs: log.split(/\r?\n/).filter(Boolean).slice(-12),
   };
 }

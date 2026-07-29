@@ -694,7 +694,7 @@
         <div class="snowflake-grid">
           <div class="mini"><div class="mini-label">Durum</div><div class="mini-value" id="snowflake-status">—</div></div>
           <div class="mini"><div class="mini-label">NAT türü</div><div class="mini-value" id="snowflake-nat">—</div></div>
-          <div class="mini"><div class="mini-label">Yardım edilen bağlantı</div><div class="mini-value" id="snowflake-connections">—</div></div>
+          <div class="mini"><div class="mini-label">Tamamlanan bağlantı oturumu</div><div class="mini-value" id="snowflake-connections">—</div></div>
           <div class="mini"><div class="mini-label">Snowflake trafiği</div><div class="mini-value" id="snowflake-traffic">—</div></div>
           <div class="mini"><div class="mini-label">Toplam destek</div><div class="mini-value" id="support-total">—</div></div>
         </div>
@@ -1161,7 +1161,7 @@
       $("project-snowflake-state").textContent = snowflakeRunning ? "Çalışıyor" : "Kapalı";
       $("project-snowflake-state").className = "project-state " + (snowflakeRunning ? "good" : "bad");
       $("project-snowflake-detail").textContent = snowflakeRunning
-        ? `${snowflakeConnections.toLocaleString("tr-TR")} bağlantıya yardım edildi; ${formatBytes(snowflakeTraffic)} trafik. Yeni kullanıcı sayısını Tor broker talebi belirler.`
+        ? `${snowflakeConnections.toLocaleString("tr-TR")} bağlantı oturumu tamamlandı; ${formatBytes(snowflakeTraffic)} trafik. Bu benzersiz kişi sayısı değildir ve gizlilik gereği kişi tahmini yapılmaz.`
         : "Snowflake servisi çalışmıyor.";
       $("project-snowflake-meta").textContent = `NAT ${natLabels[data.snowflake?.natType] || "kontrol"} · kapasite ${data.snowflake?.capacity || 100} · 7/24 · disk paylaşımı yok`;
       $("folding-detail").textContent = folding.detail || "Folding@home durumu alınamadı.";
