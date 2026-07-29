@@ -189,12 +189,21 @@ private struct RelayStatus: Decodable {
             let skttPercent: Double
         }
 
+        struct ScheduleRecommendation: Decodable {
+            let ecoStart: String
+            let ecoEnd: String
+            let basis: String
+            let standardTariffSamePriceAllDay: Bool
+            let snowflakeAlwaysOn: Bool
+        }
+
         let available: Bool
         let tariff: Tariff
         let today: Impact
         let month: Impact
         let runRate30Days: Impact
         let runRateAnnual: AnnualImpact
+        let scheduleRecommendation: ScheduleRecommendation?
     }
 
     let updatedAt: String
@@ -579,6 +588,11 @@ private struct RelayMenuView: View {
                         Text("\(electricity.tariff.location) · düşük/yüksek mesken kademesi · akıllı priz yok, PC payı tahminidir.")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
+                        if let recommendation = electricity.scheduleRecommendation {
+                            Text("Puant eko \(recommendation.ecoStart)–\(recommendation.ecoEnd) · Snowflake açık kalır · tek zamanlı tarifede saatlik fiyat değişmez.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     Divider()
@@ -595,7 +609,7 @@ private struct RelayMenuView: View {
                                     .font(.headline)
                             }
                             Spacer()
-                            Text(power.controlMode == "auto" ? "\(power.nightStart)–\(power.nightEnd)" : "Elle seçildi")
+                            Text(power.controlMode == "auto" ? "Puant \(power.nightStart)–\(power.nightEnd)" : "Elle seçildi")
                                 .font(.caption.monospaced())
                                 .foregroundStyle(.secondary)
                         }

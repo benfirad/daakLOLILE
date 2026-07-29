@@ -9,7 +9,7 @@
 [![Tor non-exit](https://img.shields.io/badge/Tor-middle%20relay-7D4698?logo=torproject)](https://community.torproject.org/relay/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-daakLOLILE combines live Tor middle-relay traffic, Snowflake proxy statistics, Folding@home, BOINC, RIPE Atlas, CPU/GPU/RAM/disk/network telemetry, estimated power use, safe automatic night power modes, a small Windows desktop widget, and a macOS menu bar app. Remote access and power control are designed for a private [Tailscale](https://tailscale.com/) network.
+daakLOLILE combines live Tor middle-relay traffic, Snowflake proxy statistics, Folding@home, BOINC, RIPE Atlas, CPU/GPU/RAM/disk/network telemetry, estimated power use, safe automatic peak-hour power modes, a small Windows desktop widget, and a macOS menu bar app. Remote access and power control are designed for a private [Tailscale](https://tailscale.com/) network.
 
 ![daakLOLILE dashboard preview](docs/daaklolile-dashboard.svg)
 
@@ -21,6 +21,7 @@ daakLOLILE combines live Tor middle-relay traffic, Snowflake proxy statistics, F
 - Keep collecting data before logon by running the Windows tasks as `SYSTEM`.
 - Check the PC and switch power modes from a Mac menu bar app over Tailscale.
 - Track Folding@home work, BOINC projects, and RIPE Atlas measurements without sharing storage.
+- Keep the standalone Snowflake proxy available 24/7 with an unrestricted-NAT health check. Client count is demand-driven by the Tor broker; capacity is a ceiling, not a target.
 - Control BOINC from a constrained SYSTEM console over localhost or Tailscale without exposing arbitrary CMD or PowerShell execution.
 - Automatically use an efficient CPU/display profile at night without sleep, hibernation, network shutdown, or service interruption.
 - Keep Tor settings localhost-only while allowing the narrow power-mode endpoint from localhost and Tailscale.
@@ -94,12 +95,12 @@ The Mac app reads monitoring data and can call only the constrained power-mode e
 
 daakLOLILE creates three dedicated Windows power schemes and an automatic controller:
 
-- **Automatic:** night-saving from `00:00` to `08:00` by default, balanced during the day.
-- **Night saving:** caps CPU maximum state at 45%, disables boost, prefers passive cooling and parked cores, uses maximum PCIe link savings, and allows an idle HDD to spin down after 10 minutes. Folding keeps its supported GPU and one CPU thread; BOINC keeps a 25% CPU budget.
+- **Automatic:** deep eco from `17:00` to `22:00` by default, matching the official T2 peak period; balanced outside that window.
+- **Peak saving:** caps CPU maximum state at 35%, disables boost, prefers passive cooling and parked cores, uses maximum PCIe link savings, and allows an idle HDD to spin down after 10 minutes. Folding keeps one CPU thread but disables its GPU temporarily; BOINC keeps a 10% CPU budget. Snowflake remains unrestricted and always on.
 - **Balanced:** full CPU range with normal display timing.
 - **High performance:** full CPU range and boost with a longer display timeout.
 
-All daakLOLILE schemes explicitly disable sleep, hibernation, and hybrid sleep. They do not power down network adapters or change Tor, Snowflake, Tailscale, Chrome Remote Desktop, RDP, SMB, or Syncthing settings. The night-saving plan can spin down an idle mechanical disk, which wakes automatically on the next file access. The controller runs as `SYSTEM` before login and checks the schedule every five minutes.
+All daakLOLILE schemes explicitly disable sleep, hibernation, and hybrid sleep. They do not power down network adapters or change Tor, Snowflake, Tailscale, Chrome Remote Desktop, RDP, SMB, or Syncthing settings. The peak-saving plan can spin down an idle mechanical disk, which wakes automatically on the next file access. The controller runs as `SYSTEM` before login and checks the schedule every five minutes.
 
 ## Safe memory maintenance
 
@@ -117,7 +118,7 @@ Run the official client installer from an elevated PowerShell:
 ```
 
 - Folding@home runs as `lolile`, uses two CPU threads, can use a supported GPU, and is configured for idle use.
-- BOINC runs as a Windows service with conservative limits: 25% CPU in deep eco mode, 33% in other modes, 25–40% RAM, 5 GB disk, and no GPU. A project account still has to be connected by its owner.
+- BOINC runs as a Windows service with conservative limits: 10% CPU in deep eco mode, 33% in other modes, 25–40% RAM, 5 GB disk, and no GPU. A project account still has to be connected by its owner.
 - BOINC Manager stays hidden. The `daakLOLILE BOINC Headless Guard` removes Manager autostart entries, blocks interactive execution of `boincmgr.exe`, and rechecks the policy at startup, logon, and every five minutes. BOINC remains controllable from the allow-listed private dashboard console. The daakLOLILE uninstaller restores Manager execution permissions.
 - RIPE Atlas is installed from RIPE NCC's official Debian repository inside WSL after the required reboot. Its public key must be registered by the owner at [RIPE Atlas software probe registration](https://atlas.ripe.net/apply/swprobe/).
 
@@ -133,9 +134,9 @@ For accurate whole-PC energy measurement, use a reputable external smart plug or
 
 ## Electricity bill estimate
 
-The dashboard keeps a 31-day local energy ledger and estimates the PC's contribution to a standard Istanbul/Şişli residential bill. The bundled July 2026 profile uses the EPDK national low/high residential tiers effective from 4 April 2026, including an approximate tax-inclusive price range.
+The dashboard keeps a 31-day daily ledger plus seven days of hourly samples and estimates the PC's contribution to a standard Istanbul/Şişli residential bill. The bundled July 2026 profile uses the EPDK national low/high residential tiers effective from 4 April 2026, including an approximate tax-inclusive price range.
 
-Because daakLOLILE cannot see the rest of the home's meter, it does not claim a single exact bill amount. It shows the PC contribution as a low-tier/high-tier range, along with today's cost, month-to-date cost, a 30-day run-rate, daily history, and a PC-only comparison with the 4,000 kWh/year SKTT threshold. Tariffs are time-sensitive; update the constants in `windows/dashboard/server.mjs` when EPDK publishes a new national tariff.
+Because daakLOLILE cannot see the rest of the home's meter, it does not claim a single exact bill amount. It shows the PC contribution as a low-tier/high-tier range, along with today's cost, month-to-date cost, a 30-day run-rate, daily and hourly history, and a PC-only comparison with the 4,000 kWh/year SKTT threshold. Standard single-time residential pricing is the same at every hour; the automatic `17:00–22:00` window is chosen to reduce power during the official T2 peak period, not to claim a cheaper per-kWh rate. Tariffs are time-sensitive; update the constants in `windows/dashboard/server.mjs` when EPDK publishes a new national tariff.
 
 ## Data and ports
 
@@ -147,12 +148,12 @@ Because daakLOLILE cannot see the rest of the home's meter, it does not claim a 
 | Hardware sampling | Every 2 seconds |
 | Browser refresh | Every 5 seconds |
 | macOS refresh | Every 10 seconds |
-| Default night schedule | `00:00–08:00` local Windows time |
+| Default peak-saving schedule | `17:00–22:00` local Windows time |
 | Power controller | Startup + every 5 minutes, as `SYSTEM` |
 | Memory maintenance | Daily at `04:30`, as `SYSTEM`; pressure-gated |
 | Volunteer monitor | Startup + every 5 minutes, as `SYSTEM` |
 | Folding@home | 2 CPU threads; idle policy |
-| BOINC | 25% CPU in deep eco / 33% otherwise, 5 GB disk, GPU disabled |
+| BOINC | 10% CPU in deep eco / 33% otherwise, 5 GB disk, GPU disabled |
 | RIPE Atlas | Official Debian package in WSL; no disk sharing |
 | Tor root | `C:\ProgramData\TorRelay` |
 

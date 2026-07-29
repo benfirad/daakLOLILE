@@ -85,7 +85,7 @@ foreach ($required in @(
 }
 
 $powerManagerSource = Get-Content -LiteralPath (Join-Path $repoRoot 'windows\power-manager.ps1') -Raw
-foreach ($required in @('Set-VolunteerBudget','boincCpuPercent','PROCTHROTTLEMAX','PERFEPP')) {
+foreach ($required in @('Set-VolunteerBudget','boincCpuPercent','PROCTHROTTLEMAX','PERFEPP','foldingGpuPreserved = $false')) {
     if ($powerManagerSource -notmatch [regex]::Escape($required)) {
         throw "Missing eco power-budget feature: $required"
     }
@@ -131,10 +131,11 @@ foreach ($required in @(
     'data-console-action="boinc-sync"',
     'data-console-action="boinc-pause"',
     'data-console-action="boinc-headless"',
-    'Folding GPU açık/',
+    'Folding GPU kapalı/',
     'Elektrik faturasına tahmini etkisi',
     'electricity-month-cost',
     'electricity-history',
+    'hourly-energy-chart',
     'data-console-action="boinc-restart"',
     'X-daakLOLILE-Token'
 )) {

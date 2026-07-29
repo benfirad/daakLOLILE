@@ -160,9 +160,12 @@ $psuEfficiency = 0.87
 $energy = [ordered]@{
     day          = (Get-Date -Format 'yyyy-MM-dd')
     month        = (Get-Date -Format 'yyyy-MM')
+    hour         = (Get-Date -Format 'yyyy-MM-ddTHH')
     todayWh      = 0.0
     monthWh      = 0.0
+    hourWh       = 0.0
     dailyHistory = @()
+    hourlyHistory = @()
     updatedAt    = (Get-Date).ToString('o')
 }
 if (Test-Path -LiteralPath $energyPath) {
@@ -170,11 +173,19 @@ if (Test-Path -LiteralPath $energyPath) {
         $saved = Get-Content -LiteralPath $energyPath -Raw | ConvertFrom-Json
         $energy.day = [string]$saved.day
         $energy.month = [string]$saved.month
+        if ($saved.hour) { $energy.hour = [string]$saved.hour }
         $energy.todayWh = [double]$saved.todayWh
         $energy.monthWh = [double]$saved.monthWh
+        if ($null -ne $saved.hourWh) { $energy.hourWh = [double]$saved.hourWh }
         $energy.dailyHistory = @($saved.dailyHistory | ForEach-Object {
             [ordered]@{
                 date = [string]$_.date
+                kWh  = [Math]::Max(0, [double]$_.kWh)
+            }
+        })
+        $energy.hourlyHistory = @($saved.hourlyHistory | ForEach-Object {
+            [ordered]@{
+                hour = [string]$_.hour
                 kWh  = [Math]::Max(0, [double]$_.kWh)
             }
         })
@@ -249,6 +260,7 @@ try {
 
             $today = $sampleStarted.ToString('yyyy-MM-dd')
             $month = $sampleStarted.ToString('yyyy-MM')
+            $hour = $sampleStarted.ToString('yyyy-MM-ddTHH')
             if ($energy.day -ne $today) {
                 if ($energy.day -and [double]$energy.todayWh -gt 0) {
                     $completedDays = @($energy.dailyHistory | Where-Object { [string]$_.date -ne [string]$energy.day })
@@ -265,12 +277,25 @@ try {
                 $energy.month = $month
                 $energy.monthWh = 0.0
             }
+            if ($energy.hour -ne $hour) {
+                if ($energy.hour -and [double]$energy.hourWh -gt 0) {
+                    $completedHours = @($energy.hourlyHistory | Where-Object { [string]$_.hour -ne [string]$energy.hour })
+                    $completedHours += [ordered]@{
+                        hour = [string]$energy.hour
+                        kWh  = [Math]::Round([double]$energy.hourWh / 1000, 5)
+                    }
+                    $energy.hourlyHistory = @($completedHours | Sort-Object hour | Select-Object -Last 168)
+                }
+                $energy.hour = $hour
+                $energy.hourWh = 0.0
+            }
 
             $elapsedHours = [Math]::Min(30, [Math]::Max(0, ($sampleStarted - $previousSampleAt).TotalSeconds)) / 3600
             if ($null -ne $previousWallWatts -and $elapsedHours -gt 0) {
                 $addedWh = (($previousWallWatts + $wallWatts) / 2) * $elapsedHours
                 $energy.todayWh = [double]$energy.todayWh + $addedWh
                 $energy.monthWh = [double]$energy.monthWh + $addedWh
+                $energy.hourWh = [double]$energy.hourWh + $addedWh
             }
             $energy.updatedAt = $sampleStarted.ToString('o')
 
@@ -342,6 +367,9 @@ try {
                     todayKWh = [Math]::Round([double]$energy.todayWh / 1000, 4)
                     monthKWh = [Math]::Round([double]$energy.monthWh / 1000, 4)
                     dailyHistory = @($energy.dailyHistory)
+                    currentHour = [string]$energy.hour
+                    currentHourKWh = [Math]::Round([double]$energy.hourWh / 1000, 5)
+                    hourlyHistory = @($energy.hourlyHistory)
                     accuracy = if ($cpuPowerSource -eq 'sensor' -and $gpuPowerSource -eq 'sensor') { 'mixed-estimate' } else { 'estimated' }
                     note = 'Estimate only: no wall power meter is connected.'
                 }

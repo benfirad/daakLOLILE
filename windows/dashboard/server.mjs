@@ -585,6 +585,12 @@ function roundedMoney(value) {
   return Math.round(Math.max(0, Number(value) || 0) * 100) / 100;
 }
 
+function electricityPeriod(hour) {
+  if (hour >= 17 && hour < 22) return "peak";
+  if (hour >= 6 && hour < 17) return "day";
+  return "night";
+}
+
 function electricityCostStatus(hardware) {
   const power = hardware?.power || {};
   const todayKWh = Math.max(0, Number(power.todayKWh) || 0);
@@ -615,6 +621,35 @@ function electricityCostStatus(hardware) {
     lowTierTry: roundedMoney(kWh * electricityTariff.lowTierTryPerKWh),
     highTierTry: roundedMoney(kWh * electricityTariff.highTierTryPerKWh),
   });
+  const hourlyByKey = new Map();
+  for (const item of Array.isArray(power.hourlyHistory) ? power.hourlyHistory : []) {
+    const hour = String(item?.hour || "");
+    if (/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3])$/.test(hour)) {
+      hourlyByKey.set(hour, Math.max(0, Number(item?.kWh) || 0));
+    }
+  }
+  if (/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3])$/.test(String(power.currentHour || ""))) {
+    hourlyByKey.set(String(power.currentHour), Math.max(0, Number(power.currentHourKWh) || 0));
+  }
+  const hourlyHistory = [...hourlyByKey.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-168)
+    .map(([hour, kWh]) => {
+      const hourOfDay = Number(hour.slice(-2));
+      return { hour, hourOfDay, period: electricityPeriod(hourOfDay), ...impact(kWh) };
+    });
+  const hourlyProfile = Array.from({ length: 24 }, (_, hourOfDay) => {
+    const samples = hourlyHistory.filter(item => item.hourOfDay === hourOfDay);
+    const averageKWh = samples.length
+      ? samples.reduce((sum, item) => sum + item.kWh, 0) / samples.length
+      : 0;
+    return {
+      hourOfDay,
+      period: electricityPeriod(hourOfDay),
+      samples: samples.length,
+      ...impact(averageKWh),
+    };
+  });
   const runRate30DaysKWh = wallWatts / 1000 * 24 * 30;
   const runRateAnnualKWh = wallWatts / 1000 * 24 * 365;
 
@@ -631,6 +666,16 @@ function electricityCostStatus(hardware) {
       skttPercent: Math.round(runRateAnnualKWh / electricityTariff.skttAnnualKWh * 1000) / 10,
     },
     dailyHistory,
+    hourlyHistory,
+    hourlyProfile,
+    scheduleRecommendation: {
+      ecoStart: "17:00",
+      ecoEnd: "22:00",
+      basis: "TEDAŞ üç zamanlı tarife T2 puant dönemi",
+      standardTariffSamePriceAllDay: true,
+      snowflakeAlwaysOn: true,
+      heavyVolunteerComputingReduced: true,
+    },
     note: "Bu yalnızca PC'nin tahmini payıdır. Evin diğer tüketimi bilinmediği için gerçek faturadaki kademe düşük-yüksek aralığıyla gösterilir; akıllı priz bağlı değildir.",
   };
 }
@@ -649,8 +694,8 @@ async function powerStatus() {
       available: false,
       controlMode: "unknown",
       effectiveMode: "unknown",
-      nightStart: "00:00",
-      nightEnd: "08:00",
+      nightStart: "17:00",
+      nightEnd: "22:00",
       safeguards: { services: [], snowflake: false, sleepDisabled: true },
     };
   }

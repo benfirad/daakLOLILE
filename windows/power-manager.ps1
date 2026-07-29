@@ -80,7 +80,7 @@ function Set-EcoScheme {
     param([string]$Scheme)
     Set-AlwaysReachable -Scheme $Scheme
     Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMIN' -Value 5
-    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMAX' -Value 45
+    Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMAX' -Value 35
     Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PERFBOOSTMODE' -Value 0 -BestEffort
     Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PERFEPP' -Value 90 -BestEffort
     Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'SYSCOOLPOL' -Value 0 -BestEffort
@@ -90,7 +90,7 @@ function Set-EcoScheme {
     Set-AcValue -Scheme $Scheme -Subgroup 'SUB_PCIEXPRESS' -Setting 'ASPM' -Value 2 -BestEffort
     Set-AcValue -Scheme $Scheme -Subgroup 'SUB_VIDEO' -Setting 'VIDEOIDLE' -Value 300
     Set-DcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMIN' -Value 5
-    Set-DcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMAX' -Value 40
+    Set-DcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PROCTHROTTLEMAX' -Value 35
     Set-DcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PERFBOOSTMODE' -Value 0 -BestEffort
     Set-DcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'PERFEPP' -Value 95 -BestEffort
     Set-DcValue -Scheme $Scheme -Subgroup 'SUB_PROCESSOR' -Setting 'SYSCOOLPOL' -Value 0 -BestEffort
@@ -186,12 +186,12 @@ function Get-ModePolicy {
     param([string]$EffectiveMode)
     if ($EffectiveMode -eq 'eco') {
         return [pscustomobject]@{
-            cpuMaxPercent = 45
+            cpuMaxPercent = 35
             cpuBoost = $false
             diskIdleMinutes = 10
             foldingCpuThreads = 1
-            foldingGpuPreserved = $true
-            boincCpuPercent = 25
+            foldingGpuPreserved = $false
+            boincCpuPercent = 10
         }
     }
     return [pscustomobject]@{
@@ -293,7 +293,7 @@ try {
             try { $existing = Read-Config } catch {}
             $original = if ($existing.originalScheme) { [string]$existing.originalScheme } else { Get-ActiveScheme }
             $eco = if (Test-Scheme -Guid $existing.schemes.eco) { [string]$existing.schemes.eco } else {
-                New-Scheme -Template 'SCHEME_MAX' -Name 'daakLOLILE Night Saver' -Description 'Network and services stay online; CPU and display use less power.'
+                New-Scheme -Template 'SCHEME_MAX' -Name 'daakLOLILE Peak Saver' -Description 'Network and services stay online; volunteer computing uses minimum power during peak hours.'
             }
             $balanced = if (Test-Scheme -Guid $existing.schemes.balanced) { [string]$existing.schemes.balanced } else {
                 New-Scheme -Template 'SCHEME_BALANCED' -Name 'daakLOLILE Balanced' -Description 'Everyday use; sleep stays disabled and remote access stays online.'
@@ -301,7 +301,7 @@ try {
             $performance = if (Test-Scheme -Guid $existing.schemes.performance) { [string]$existing.schemes.performance } else {
                 New-Scheme -Template 'SCHEME_MIN' -Name 'daakLOLILE High Performance' -Description 'Full CPU performance; sleep stays disabled and remote access stays online.'
             }
-            $null = Invoke-PowerCfg -Arguments @('/changename',$eco,'daakLOLILE Night Saver','Network and services stay online; CPU and display use less power.')
+            $null = Invoke-PowerCfg -Arguments @('/changename',$eco,'daakLOLILE Peak Saver','Network and services stay online; volunteer computing uses minimum power during peak hours.')
             $null = Invoke-PowerCfg -Arguments @('/changename',$balanced,'daakLOLILE Balanced','Everyday use; sleep stays disabled and remote access stays online.')
             $null = Invoke-PowerCfg -Arguments @('/changename',$performance,'daakLOLILE High Performance','Full CPU performance; sleep stays disabled and remote access stays online.')
             Set-EcoScheme -Scheme $eco
@@ -310,8 +310,8 @@ try {
             $config = [pscustomobject]@{
                 version = 1
                 controlMode = if ($existing.controlMode) { [string]$existing.controlMode } else { 'auto' }
-                nightStart = if ($existing.nightStart) { [string]$existing.nightStart } else { '00:00' }
-                nightEnd = if ($existing.nightEnd) { [string]$existing.nightEnd } else { '08:00' }
+                nightStart = if ($existing.nightStart) { [string]$existing.nightStart } else { '17:00' }
+                nightEnd = if ($existing.nightEnd) { [string]$existing.nightEnd } else { '22:00' }
                 originalScheme = $original
                 schemes = [pscustomobject]@{ eco=$eco; balanced=$balanced; performance=$performance }
                 updatedAt = $null

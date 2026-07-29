@@ -43,10 +43,11 @@ socket.onmessage = event => {
     const supported = Object.entries(data.info?.gpus || {})
       .filter(([, value]) => value?.supported === true)
       .map(([id]) => id);
-    const gpus = Object.fromEntries(supported.map(id => [id, { enabled: true }]));
+    const targetGpuEnabled = command !== "eco";
+    const gpus = Object.fromEntries(supported.map(id => [id, { enabled: targetGpuEnabled }]));
     const targetCpus = command === "eco" ? 1 : 2;
     const gpuState = group.gpus || {};
-    const gpuMatches = supported.every(id => gpuState[id]?.enabled === true);
+    const gpuMatches = supported.every(id => gpuState[id]?.enabled === targetGpuEnabled);
     const needsConfig =
       Number(group.cpus) !== targetCpus ||
       group.on_idle !== true ||

@@ -215,6 +215,15 @@
     .cost-day-range { color: var(--amber); text-align: right; }
     .cost-source { margin-top: 12px; color: #77707e; font-size: 10px; line-height: 1.55; }
     .cost-source a { color: var(--purple-bright); }
+    .hourly-energy { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+    .hourly-energy-head { display: flex; justify-content: space-between; gap: 14px; align-items: end; }
+    .hourly-energy-note { color: var(--muted); font-size: 10px; line-height: 1.5; text-align: right; }
+    .hourly-energy-chart { height: 76px; display: grid; grid-template-columns: repeat(24, minmax(2px, 1fr)); align-items: end; gap: 4px; margin-top: 13px; }
+    .hourly-energy-bar { min-height: 4px; border-radius: 3px 3px 0 0; background: rgba(198,155,234,.72); }
+    .hourly-energy-bar.peak { background: rgba(233,185,93,.92); }
+    .hourly-energy-bar.night { background: rgba(100,214,146,.62); }
+    .hourly-energy-axis { display: grid; grid-template-columns: repeat(24, 1fr); margin-top: 5px; color: #756d7b; font-family: var(--mono); font-size: 8px; }
+    .hourly-energy-axis span { text-align: center; }
     .power-control {
       margin-top: 16px;
       padding: 16px;
@@ -563,10 +572,10 @@
               <button class="button mode-button" type="button" data-power-mode="performance">Yüksek performans</button>
             </div>
             <div class="power-schedule">
-              <span>Gece</span>
-              <input class="time-input" id="night-start" type="time" value="00:00" aria-label="Gece modu başlangıcı">
+              <span>Puant eko</span>
+              <input class="time-input" id="night-start" type="time" value="17:00" aria-label="Puant eko başlangıcı">
               <span>–</span>
-              <input class="time-input" id="night-end" type="time" value="08:00" aria-label="Gece modu bitişi">
+              <input class="time-input" id="night-end" type="time" value="22:00" aria-label="Puant eko bitişi">
               <button class="button" id="save-power-schedule" type="button">Saati kaydet</button>
             </div>
             <div class="power-message" id="power-message"></div>
@@ -625,6 +634,14 @@
         <div class="cost-history">
           <div class="cost-history-head"><span>Gün</span><span>Enerji</span><span style="text-align:right">Fatura etkisi</span></div>
           <div id="electricity-history"><div class="empty">Günlük maliyet geçmişi hazırlanıyor…</div></div>
+        </div>
+        <div class="hourly-energy">
+          <div class="hourly-energy-head">
+            <div><div class="card-label">Saatlik tüketim profili</div><h3>Hangi saatte ne kadar tüketiyor?</h3></div>
+            <div class="hourly-energy-note" id="hourly-energy-note">İlk saatlik ölçüm biriktiriliyor…</div>
+          </div>
+          <div class="hourly-energy-chart" id="hourly-energy-chart" aria-label="Son yedi günün saatlik ortalama enerji tüketimi"></div>
+          <div class="hourly-energy-axis" id="hourly-energy-axis" aria-hidden="true"></div>
         </div>
         <div class="cost-source" id="electricity-source">Akıllı priz bağlı değildir; değerler donanım sensörlerinden hesaplanan tahmini priz tüketimidir.</div>
       </article>
@@ -954,6 +971,22 @@
         $("electricity-sktt").textContent =
           `PC tek başına ${Number(tariff.skttAnnualKWh || 4000).toLocaleString("tr-TR")} kWh/yıl sınırının %${Number(electricity.runRateAnnual?.skttPercent || 0).toFixed(1)}’i · ev toplamı belirler`;
 
+        const hourlyProfile = Array.isArray(electricity.hourlyProfile) ? electricity.hourlyProfile : [];
+        const maxHourlyKWh = Math.max(0.001, ...hourlyProfile.map(item => Number(item.kWh) || 0));
+        $("hourly-energy-chart").innerHTML = hourlyProfile.map(item => {
+          const height = item.samples > 0 ? Math.max(5, (Number(item.kWh) || 0) / maxHourlyKWh * 100) : 3;
+          const period = ["peak", "night"].includes(item.period) ? item.period : "day";
+          const label = `${String(item.hourOfDay).padStart(2, "0")}:00 · ${Number(item.kWh || 0).toFixed(3)} kWh · ${item.samples || 0} örnek`;
+          return `<span class="hourly-energy-bar ${period}" style="height:${height}%" title="${escapeHtml(label)}"></span>`;
+        }).join("");
+        $("hourly-energy-axis").innerHTML = Array.from({length:24}, (_, hour) =>
+          `<span>${[0,6,12,17,22].includes(hour) ? String(hour).padStart(2, "0") : ""}</span>`
+        ).join("");
+        const measuredHours = hourlyProfile.reduce((sum, item) => sum + (Number(item.samples) || 0), 0);
+        $("hourly-energy-note").textContent = measuredHours
+          ? `Son 7 gün ortalaması · sarı 17:00–22:00 puant · ${measuredHours} saat örneği`
+          : "Yeni saatlik kayıt başlatıldı · 17:00–22:00 puant eko";
+
         const costDays = Array.isArray(electricity.dailyHistory) ? electricity.dailyHistory.slice(-14).reverse() : [];
         $("electricity-history").innerHTML = costDays.length ? costDays.map(day => {
           const date = new Date(`${day.date}T12:00:00+03:00`);
@@ -975,6 +1008,8 @@
         $("electricity-runrate-cost").textContent = "—";
         $("electricity-annual-energy").textContent = "—";
         $("electricity-history").innerHTML = '<div class="empty">Enerji telemetrisi henüz hazır değil.</div>';
+        $("hourly-energy-chart").innerHTML = "";
+        $("hourly-energy-note").textContent = "Saatlik enerji telemetrisi bekleniyor";
       }
 
       const power = data.power || {};
@@ -987,13 +1022,13 @@
       $("power-mode-title").textContent = powerLabels[power.effectiveMode] || "Hazır değil";
       const energyPolicy = power.energyPolicy || {};
       const ecoDetail = power.effectiveMode === "eco"
-        ? ` · CPU %${energyPolicy.cpuMaxPercent || 45} · Folding GPU açık/${energyPolicy.foldingCpuThreads || 1} CPU · BOINC %${energyPolicy.boincCpuPercent || 25}`
+        ? ` · CPU %${energyPolicy.cpuMaxPercent || 35} · Folding GPU kapalı/${energyPolicy.foldingCpuThreads || 1} CPU · BOINC %${energyPolicy.boincCpuPercent || 10} · Snowflake serbest`
         : "";
       $("power-mode-note").textContent = power.controlMode === "auto"
-        ? `Otomatik · ${power.nightStart || "00:00"}–${power.nightEnd || "08:00"} · Uyku ve ağ kesintisi yok${ecoDetail}`
+        ? `Otomatik puant eko · ${power.nightStart || "17:00"}–${power.nightEnd || "22:00"} · Uyku ve ağ kesintisi yok${ecoDetail}`
         : `Elle seçildi · Uyku ve ağ kesintisi yok · ${powerLabels[power.effectiveMode] || ""}${ecoDetail}`;
-      if (document.activeElement !== $("night-start")) $("night-start").value = power.nightStart || "00:00";
-      if (document.activeElement !== $("night-end")) $("night-end").value = power.nightEnd || "08:00";
+      if (document.activeElement !== $("night-start")) $("night-start").value = power.nightStart || "17:00";
+      if (document.activeElement !== $("night-end")) $("night-end").value = power.nightEnd || "22:00";
       const powerAllowed = data.permissions?.power === true;
       for (const button of document.querySelectorAll("[data-power-mode]")) {
         button.disabled = !powerAllowed || power.available !== true;
@@ -1126,9 +1161,9 @@
       $("project-snowflake-state").textContent = snowflakeRunning ? "Çalışıyor" : "Kapalı";
       $("project-snowflake-state").className = "project-state " + (snowflakeRunning ? "good" : "bad");
       $("project-snowflake-detail").textContent = snowflakeRunning
-        ? `${snowflakeConnections.toLocaleString("tr-TR")} bağlantıya yardım edildi; ${formatBytes(snowflakeTraffic)} trafik.`
+        ? `${snowflakeConnections.toLocaleString("tr-TR")} bağlantıya yardım edildi; ${formatBytes(snowflakeTraffic)} trafik. Yeni kullanıcı sayısını Tor broker talebi belirler.`
         : "Snowflake servisi çalışmıyor.";
-      $("project-snowflake-meta").textContent = `NAT ${natLabels[data.snowflake?.natType] || "kontrol"} · disk paylaşımı yok`;
+      $("project-snowflake-meta").textContent = `NAT ${natLabels[data.snowflake?.natType] || "kontrol"} · kapasite ${data.snowflake?.capacity || 100} · 7/24 · disk paylaşımı yok`;
       $("folding-detail").textContent = folding.detail || "Folding@home durumu alınamadı.";
       $("folding-meta").textContent = `Boşta çalışır · ${Number(folding.cpuThreads) || 2} CPU iş parçacığı · kullanıcı ${folding.user || "lolile"}`;
       $("boinc-detail").textContent = boinc.detail || "BOINC durumu alınamadı.";
@@ -1247,7 +1282,7 @@
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Güç modu uygulanamadı.");
         message.textContent = mode === "auto"
-          ? `Otomatik gece modu ${result.power.nightStart}–${result.power.nightEnd} etkin.`
+          ? `Otomatik puant eko ${result.power.nightStart}–${result.power.nightEnd} etkin. Snowflake açık kalır.`
           : `${powerModeText(mode)} etkin.`;
         await refresh();
       } catch (error) {
