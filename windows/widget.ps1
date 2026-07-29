@@ -19,6 +19,9 @@ if (-not $createdNew) {
     exit 0
 }
 
+$application = New-Object Windows.Application
+$application.ShutdownMode = [Windows.ShutdownMode]::OnExplicitShutdown
+
 $xaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -124,30 +127,27 @@ function New-StatusIcon([string]$Color) {
 }
 
 function New-NumericStatusIcon([string]$Value, [string]$Color) {
-    $bitmap = New-Object Drawing.Bitmap 16, 16
+    $bitmap = New-Object Drawing.Bitmap 32, 32
     $graphics = [Drawing.Graphics]::FromImage($bitmap)
     $graphics.SmoothingMode = [Drawing.Drawing2D.SmoothingMode]::AntiAlias
-    $graphics.TextRenderingHint = [Drawing.Text.TextRenderingHint]::SingleBitPerPixelGridFit
+    $graphics.TextRenderingHint = [Drawing.Text.TextRenderingHint]::AntiAliasGridFit
     $graphics.Clear([Drawing.Color]::Transparent)
-    $background = New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(238, 24, 20, 28))
-    $border = New-Object Drawing.Pen ([Drawing.ColorTranslator]::FromHtml($Color)), 1
     $foreground = New-Object Drawing.SolidBrush ([Drawing.ColorTranslator]::FromHtml($Color))
-    $graphics.FillRectangle($background, 1, 1, 14, 14)
-    $graphics.DrawRectangle($border, 1, 1, 13, 13)
-    $fontSize = if ($Value.Length -ge 3) { 6.0 } else { 7.0 }
+    $shadow = New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(235, 8, 6, 10))
+    $fontSize = if ($Value.Length -ge 3) { 14.0 } else { 17.0 }
     $font = New-Object Drawing.Font 'Arial', $fontSize, ([Drawing.FontStyle]::Bold), ([Drawing.GraphicsUnit]::Pixel)
     $format = New-Object Drawing.StringFormat
     $format.Alignment = [Drawing.StringAlignment]::Center
     $format.LineAlignment = [Drawing.StringAlignment]::Center
-    $graphics.DrawString($Value, $font, $foreground, [Drawing.RectangleF]::new(1, 1, 14, 14), $format)
+    $graphics.DrawString($Value, $font, $shadow, [Drawing.RectangleF]::new(1, 1, 32, 32), $format)
+    $graphics.DrawString($Value, $font, $foreground, [Drawing.RectangleF]::new(0, 0, 32, 32), $format)
     $handle = $bitmap.GetHicon()
     $icon = [Drawing.Icon]::FromHandle($handle).Clone()
     [void][daakLOLILEIconNative]::DestroyIcon($handle)
     $format.Dispose()
     $font.Dispose()
+    $shadow.Dispose()
     $foreground.Dispose()
-    $border.Dispose()
-    $background.Dispose()
     $graphics.Dispose()
     $bitmap.Dispose()
     return $icon
@@ -397,6 +397,7 @@ $exitMenuItem.add_Click({
     $window.Dispatcher.BeginInvoke([Action]{
         $script:allowClose = $true
         $window.Close()
+        $application.Shutdown()
     }) | Out-Null
 })
 $notifyIcon.add_MouseClick({
@@ -421,7 +422,7 @@ $timer.Add_Tick({
 Update-Widget
 $timer.Start()
 try {
-    $window.ShowDialog() | Out-Null
+    [void]$application.Run($window)
 }
 finally {
     $notifyIcon.Visible = $false

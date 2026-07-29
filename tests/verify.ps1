@@ -117,7 +117,11 @@ foreach ($required in @(
     'Set-PowerTrayState',
     'powerNotifyIcon',
     'Toggle-WidgetVisibility',
-    'ContextMenuStrip'
+    'ContextMenuStrip',
+    'OnExplicitShutdown',
+    'application.Run($window)',
+    'New-Object Drawing.Bitmap 32, 32',
+    'AntiAliasGridFit'
 )) {
     if ($widgetSource -notmatch [regex]::Escape($required)) {
         throw "Missing minimal resilient widget feature: $required"
