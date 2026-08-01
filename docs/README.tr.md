@@ -1,6 +1,6 @@
 # daakLOLILE — Türkçe
 
-daakLOLILE; Windows üzerinde çalışan Tor middle/non-exit relay, Snowflake, bilgisayar donanımı ve güvenli güç modlarını tek panelden yönetir. Küçük bir Windows masaüstü bileşeni ve Tailscale üzerinden çalışan macOS üst menü uygulaması içerir.
+daakLOLILE; Windows üzerinde çalışan Tor middle/non-exit relay, Snowflake, bilgisayar donanımı ve güvenli güç modlarını tek panelden yönetir. Küçük bir Windows masaüstü bileşeni, Tailscale üzerinden çalışan macOS üst menü uygulaması ve DAAK NODE Android istemcisi içerir.
 
 ## Özellikler
 
@@ -15,6 +15,7 @@ daakLOLILE; Windows üzerinde çalışan Tor middle/non-exit relay, Snowflake, b
 - Tailscale üzerinden otomatik, tasarruf, dengeli ve yüksek performans geçişi
 - Tasarruf modunda bile uyku, hibernasyon ve ağ kesintisinin kapalı tutulması
 - Tailscale adres aralıklarıyla sınırlı uzaktan panel
+- DAAK NODE üzerinden özel panel erişimi ve SSH/SFTP ile yapılandırılmış Windows diski gezintisi
 
 ## Güvenlik
 
@@ -59,6 +60,14 @@ zsh build.command
 ```
 
 Uygulama açıldığında Windows bilgisayarının Tailscale IP'sini yazın. Mac uygulaması verileri okur ve yalnızca önceden tanımlı güç modları arasında geçiş yapabilir; Mac üzerinde relay çalıştırmaz ve Tor ayarlarını değiştiremez.
+
+## Android / DAAK NODE
+
+1. Windows ve Android telefonu aynı Tailscale ağına bağlayın.
+2. DAAK NODE'un cihazda tutulan `config.properties` dosyasındaki `lolile_host` değerini Windows cihazının Tailscale IP'si yapın.
+3. Panel için **Control → DAAK LOLILE**, yapılandırılmış diski anahtarlı SSH/SFTP ile gezmek için **LOLILE B:** bölümünü açın.
+
+DAAK NODE paneli internete açmaz ve Windows parolası saklamaz. Panel yalnızca localhost ve Tailscale kaynaklarından erişilebilir; kontrolleri macOS istemcisindeki aynı sabit ve denetlenebilir işlemlerle sınırlıdır. Makine adresleri, SSH anahtarları ve kurulumunuza özel diğer değerler herkese açık repolara eklenmemelidir.
 
 ## Güvenli güç modları
 

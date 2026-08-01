@@ -1,6 +1,6 @@
 # daakLOLILE
 
-**A privacy-first Windows Tor relay dashboard, PC hardware monitor, safe power-mode controller, desktop widget, and macOS menu bar companion.**
+**A privacy-first Windows Tor relay dashboard, PC hardware monitor, safe power-mode controller, desktop widget, macOS menu bar companion, and DAAK NODE Android client.**
 
 [Türkçe dokümantasyon](docs/README.tr.md)
 
@@ -9,7 +9,7 @@
 [![Tor non-exit](https://img.shields.io/badge/Tor-middle%20relay-7D4698?logo=torproject)](https://community.torproject.org/relay/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-daakLOLILE combines live Tor middle-relay traffic, Snowflake proxy statistics, Folding@home, BOINC, RIPE Atlas, CPU/GPU/RAM/disk/network telemetry, estimated power use, safe automatic peak-hour power modes, a small Windows desktop widget, and a macOS menu bar app. Remote access and power control are designed for a private [Tailscale](https://tailscale.com/) network.
+daakLOLILE combines live Tor middle-relay traffic, Snowflake proxy statistics, Folding@home, BOINC, RIPE Atlas, CPU/GPU/RAM/disk/network telemetry, estimated power use, safe automatic peak-hour power modes, a small Windows desktop widget, a macOS menu bar app, and a DAAK NODE Android companion. Remote access and power control are designed for a private [Tailscale](https://tailscale.com/) network.
 
 The compact desktop widget keeps only total support, Tor/Snowflake health, volunteer projects, power mode, CPU, and GPU visible. Two dynamic Windows notification-area icons remain available when the card is hidden: one color-coded health indicator and one enlarged, borderless numeric watt icon sized to fill the native Windows tray slot. Closing the card hides it without ending the background process or either tray icon. Both icons can show or hide the card. Slow Windows-service and Tor-directory checks refresh in the background, so they cannot stall the local panel API or cause false disconnect warnings.
 
@@ -22,6 +22,7 @@ The compact desktop widget keeps only total support, Tor/Snowflake health, volun
 - Track CPU, GPU, memory, disks, network throughput, temperatures, component power sensors, and top processes.
 - Keep collecting data before logon by running the Windows tasks as `SYSTEM`.
 - Check the PC and switch power modes from a Mac menu bar app over Tailscale.
+- Open the private dashboard and browse the configured Windows data disk from DAAK NODE on Android.
 - Track Folding@home work, BOINC projects, and RIPE Atlas measurements without sharing storage.
 - Keep the standalone Snowflake proxy available 24/7 with an unrestricted-NAT health check. Completed-session count is demand-driven by the Tor broker, is not a unique-person count, and capacity is a ceiling rather than a target.
 - Control BOINC from a constrained SYSTEM console over localhost or Tailscale without exposing arbitrary CMD or PowerShell execution.
@@ -50,8 +51,9 @@ The BOINC console is also limited to loopback or Tailscale source addresses and 
 - An existing Tor relay installation whose `torrc` is under `C:\ProgramData\TorRelay` by default
 - Node.js 22 or newer
 - Administrator access for installation
-- Optional: Tailscale on Windows and macOS
+- Optional: Tailscale on Windows, macOS, and Android
 - Optional: macOS 13 or newer with Apple command-line developer tools
+- Optional: Android 10 or newer with the DAAK NODE launcher
 
 daakLOLILE downloads the pinned official [LibreHardwareMonitor 0.9.6](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/tag/v0.9.6) archive and verifies its SHA-256 checksum during Windows installation.
 
@@ -92,6 +94,14 @@ http://100.x.y.z:17657
 6. Optionally move `build/daakLOLILE.app` to Applications and add it under **System Settings → General → Login Items**.
 
 The Mac app reads monitoring data and can call only the constrained power-mode endpoint. It does not run a relay or proxy on the Mac and cannot change Tor settings.
+
+## Android / DAAK NODE
+
+1. Connect Windows and the Android phone to the same Tailscale tailnet.
+2. Set `lolile_host` to the Windows device's Tailscale IP in DAAK NODE's private `config.properties` file.
+3. Open **Control → DAAK LOLILE** to load the dashboard, or **LOLILE B:** to browse the configured disk over key-only SSH/SFTP.
+
+DAAK NODE does not publish the dashboard to the internet and does not store a Windows password. The dashboard remains restricted to localhost and Tailscale source addresses; its controls are the same fixed, audited operations exposed to the macOS companion. Keep host addresses, SSH keys, and other deployment-specific values out of public repositories.
 
 ## Safe power modes
 
