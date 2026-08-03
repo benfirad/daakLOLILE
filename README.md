@@ -1,5 +1,9 @@
 # daakLOLILE
 
+<p align="center">
+  <img src="docs/hero.svg" width="100%" alt="daakLOLILE — private relay and hardware control plane">
+</p>
+
 **A privacy-first Windows Tor relay dashboard, PC hardware monitor, safe power-mode controller, desktop widget, and macOS menu bar companion.**
 
 [Türkçe dokümantasyon](docs/README.tr.md)

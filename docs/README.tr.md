@@ -1,5 +1,9 @@
 # daakLOLILE — Türkçe
 
+<p align="center">
+  <img src="hero.svg" width="100%" alt="daakLOLILE — özel relay ve donanım kontrol paneli">
+</p>
+
 daakLOLILE; Windows üzerinde çalışan Tor middle/non-exit relay, Snowflake, bilgisayar donanımı ve güvenli güç modlarını tek panelden yönetir. Küçük bir Windows masaüstü bileşeni ve Tailscale üzerinden çalışan macOS üst menü uygulaması içerir.
 
 ## Özellikler
