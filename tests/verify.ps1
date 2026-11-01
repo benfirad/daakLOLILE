@@ -193,21 +193,25 @@ foreach ($asset in @(
     }
 }
 
+# Generic shapes of private data; the exact values to guard live in an untracked
+# tests/private-patterns.txt (one regex per line) so this script does not publish them.
 $forbiddenPatterns = @(
-    '\b100\.69\.25\.110\b',
-    '\b100\.102\.108\.7\b',
-    '\b159\.146\.\d{1,3}\.\d{1,3}\b',
-    '\b3C0EEDB23689C2FC2DA287509E619DB95C6FDF38\b',
-    '\bbenfirad@proton\.me\b',
-    '\bC:\\Users\\jarse\b',
-    'proton-recovery-phrase'
+    '\b100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3}\b(?!/)',
+    '\b[a-z]:\\users\\(?!(public|default)\b)[a-z0-9_.-]+',
+    '[\w.+-]+@(?!example\.(com|org|net)\b)[\w-]+(\.[\w-]+)+',
+    'recovery[-_ ]phrase\s*[:=]'
 )
+$privatePatterns = Join-Path $PSScriptRoot 'private-patterns.txt'
+if (Test-Path -LiteralPath $privatePatterns) {
+    $forbiddenPatterns += Get-Content -LiteralPath $privatePatterns | Where-Object { $_.Trim() -and -not $_.StartsWith('#') }
+}
 
 $verificationScript = (Get-Item -LiteralPath $PSCommandPath).FullName
 $textFiles = Get-ChildItem -LiteralPath $repoRoot -Recurse -File |
     Where-Object {
         $_.FullName -notmatch '[\\/]\.git[\\/]' -and
         $_.FullName -ne $verificationScript -and
+        $_.FullName -ne $privatePatterns -and
         $_.Extension -notin @('.png','.jpg','.jpeg','.gif','.zip','.dll','.exe')
     }
 

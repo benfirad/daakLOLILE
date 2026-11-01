@@ -20,3 +20,6 @@ dist/
 .vscode/
 .idea/
 *.swp
+
+# Exact private values checked by tests/verify.ps1
+tests/private-patterns.txt
